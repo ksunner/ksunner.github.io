@@ -159,9 +159,9 @@
     <p>
         As .jpg files are not very large in size, we can afford to brute force the optimal alignment across a preset range of values.
         For every image small enough to use with the single-scale align algorithm, I exhaustively searched across x and y axis displacements
-        from a range within a range of -15 to 15 pixels, applied to an image cropped by 10% of the image's original dimensions to ensure that
+        within a range of -15 to 15 pixels, applied to an image cropped by 10% of the image's original dimensions to ensure that
         the image borders don't effect the quality of our alignments. To perform displacements, I made good use of numpy's np.roll function to perform
-        displacements fast. To evaluate alignments, I used the L2 norm, which takes the square root of the sum of the squared pixel differences
+        displacements fast. To evaluate alignments, I used the L2 norm function, which takes the square root of the sum of the squared pixel differences
         between the displaced channel and the channel we are aligning to, penalizing large differences harshly. Using the L2 loss function, the optimal channel displacement will
         seek to minimize the L2 loss. The single-scale alignment algorithm worked really well and was able to produce very well aligned images for small images reasonably fast.
         However, for larger images such as .tif files, the algorithm (while producing good results), was extremely slow, requiring the need for optimization techniques
@@ -200,19 +200,19 @@
       
       <br><br>As a quick overview, the coarse-to-fine strategy involves taking a large image and repeatedly downsampling and applying gaussian blur to the image
       until it reaches a computationally tractable size. The alignment search begins on the smallest image in the pyramid across a wide range of displacements, and
-      then at each subsequent larger image the search is narrowed around the optimal displacement found in the image in the previous layer. We continue this until we
-      reache the final (original) image which should be the optimal alignment.
+      then at each subsequent larger image the search is narrowed around the optimal displacement found in the image from the previous layer. We continue this until we
+      reach the final (original) image which should produce the optimal alignment.
       
       <br><br>In my implementation, a Gaussian Image Pyramid was constructed such that each successive photo 
       in the pyramid was half the size as the previous photo. I observed that the best height for my Gaussian Image Pyramid was 3
       layers deep (excluding the original image) and that cropping 10% from the borders of each images before building the pyramid was effective at reducing misalignment errors.
-      I then started the search at the smallest images across an initial displacement search range from -30 to 30 pixel for both the x and y displacements. At each subsequent layer,
-      I search within 5 pixels of the scaled displacement (2x) from the previous layer.
+      I then started the search at the smallest image across an initial displacement search range from -30 to 30 pixels for both the x and y displacements. At each subsequent layer,
+      I searched within 5 pixels of the scaled optimal displacement (2x) from the previous layer.
 
       <br><br>This coarse-to-fine strategy worked extremely well as it preserved optimal alignment while significantly reducing the runtime. By conducting a large search for the 
       optimal displacement on a smaller version of the image and refining the optimal displacement as I went up the pyramid, the runtime of the align algorithm was
       drastically reduced as I no longer had to search across a massive range of displacements on the original large image, but instead search across a very small range
-      on a very good displacement guess retrieved from a smaller image.
+      centered on a very good displacement guess retrieved from a smaller image.
 
       <br><br>However, this algorithm was not without its faults. While working extremely well for all images (both small and large), the algorithm still massively failed
         on Emir, probably due to the fact that L2 greatly exaggerates errors due to brightness differences in the color channels rather than actual differences due to
@@ -342,7 +342,7 @@
     <p>
         Because of stark brightness difference between the green/red channels and the blue channel (Emir's dress appears to look white in the
         .tif file for the blue channel as opposed to darker in the green/red channels), I decided to instead align the blue and red channels to the green channel,
-        hoping that the increased similarities between the red and green channels would help align the red channel more optimal. Switching the channels we aligned to
+        hoping that the increased similarities between the red and green channels would help align the red channel more optimally. Switching the channels we aligned to
         produced exactly the result I hoped for, producing a perfect image of Emir. The original vs corrected photo is shown below along with their optimal channel
         displacements.
     </p>
