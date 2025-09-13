@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Project 1: Russian Empire in Color</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    :root{
+      --header-h: 64px;
+      box-sizing: border-box;
+    }
+
+    *, *::before, *::after { box-sizing: inherit; }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(120deg, #1a1a1a, #2a2a2a);
+      color: #e0e0e0;
+    }
+
+    /* Fixed header with glassy effect */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--header-h);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 28px;
+      background: rgba(17, 17, 17, 0.7); /* semi-transparent dark */
+      backdrop-filter: blur(10px);        /* diffuse background */
+      -webkit-backdrop-filter: blur(10px); /* Safari support */
+      color: #f0f0f0;
+      font-family: 'Merriweather', serif;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      z-index: 1000;
+    }
+
+    .title {
+      font-size: clamp(1.0rem, 1.6vw + 0.6rem, 1.6rem);
+      font-weight: 600;
+      margin: 0;
+      flex: 1 1 auto;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-link {
+      flex: 0 0 auto;
+      padding: 8px 16px;
+      background: #1f1f1f;
+      color: #e0e0e0;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+      transition: background 0.25s ease, transform 0.15s ease, box-shadow 0.25s ease, color 0.25s ease;
+    }
+
+    .header-link:hover,
+    .header-link:focus {
+      background: linear-gradient(120deg, #2a2a2a, #3a3a3a);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.8);
+      transform: translateY(-2px);
+      color: #fff;
+      outline: none;
+    }
+
+    .spacer {
+      height: var(--header-h);
+    }
+
+    section {
+      margin: 40px auto;
+      max-width: 1400px;
+      padding: 25px;
+      background: #1f1f1f;
+      border-radius: 16px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    section:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.8);
+    }
+
+    h2 {
+      font-family: 'Merriweather', serif;
+      font-size: 1.8rem;
+      margin-bottom: 20px;
+      border-left: 5px solid #4a90e2;
+      padding-left: 10px;
+      color: #f5f5f5;
+    }
+
+    .image-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 15px;
+    }
+
+    .image-container figure {
+      text-align: center;
+    }
+
+    .image-container img {
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.7);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .image-container img:hover {
+      transform: scale(1.04);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.9);
+    }
+
+    .image-container figcaption {
+      margin-top: 8px;
+      font-size: 0.9rem;
+      color: #bbb;
+      white-space: pre-line;
+    }
+
+    @media (max-width: 520px) {
+      :root { --header-h: 72px; }
+      header { padding: 8px 14px; }
+      .header-link { padding: 7px 12px; font-size: 0.88rem; }
+      .title { font-size: clamp(0.95rem, 2.6vw + 0.2rem, 1.25rem); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title">Colorizing the Prokudin-Gorskii Photo Collection</div>
+    <a class="header-link" href="../index.html" aria-label="Home">Home</a>
+  </header>
+
+  <div class="spacer"></div>
+
+  <!-- Sections remain unchanged -->
+  <section>
+    <h2>Single-scale Implementation (L2 Norm)</h2>
+    <p>
+        As .jpg files are not very large in size, we can afford to brute force the optimal alignment across a preset range of values.
+        For every image small enough to use with the single-scale align algorithm, I exhaustively searched across x and y axis displacements
+        from a range within a range of -15 to 15 pixels, applied to an image cropped by 10% of the image's original dimensions to ensure that
+        the image borders don't effect the quality of our alignments. To perform displacements, I made good use of numpy's np.roll function to perform
+        displacements fast. To evaluate alignments, I used the L2 norm, which takes the square root of the sum of the squared pixel differences
+        between the displaced channel and the channel we are aligning to, penalizing large differences harshly. Using the L2 loss function, the optimal channel displacement will
+        seek to minimize the L2 loss. The single-scale alignment algorithm worked really well and was able to produce very well aligned images for small images reasonably fast.
+        However, for larger images such as .tif files, the algorithm (while producing good results), was extremely slow, requiring the need for optimization techniques
+        discussed in the next section. Below are three small .png files to test the efficacy of the single-scale algorithm. Below each photo, the optimal displacment for the
+        green and blue channels are given in the format of (dx, dy) where dx represents the number of pixels to displace the x axis by and dy represents the number of pixels to
+        displace the y axis by.
+    </p>
+    <div class="image-container">
+      <figure>
+        <img src="../imgs/cathedral_single_scale.jpg" alt="Cathedral">
+        <figcaption>
+          Cathedral<br>G: (2, 5)<br>R: (3, 12)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/tobolsk_single_scale.jpg" alt="Tobolsk">
+        <figcaption>
+          Tobolsk<br>G: (3, 3)<br>R: (3, 6)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/monastery_single_scale.jpg" alt="Monastery">
+        <figcaption>
+          Monastery<br>G: (2, -3)<br>R: (2, 3)
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Multiscale Pyramid Implementation (L2 Norm)</h2>
+    <p>
+      Since applying the single scale algorithm on large .tif files was computationally expensive, I elected to use a 
+      coarse-to-fine approach to substantially speed up the runtime of my align algorithm. As with the single-scale align algorithm, I also used the L2
+      norm as discussed in the previous section to measure how good the alignment was for the multiscale version.
+      
+      <br><br>As a quick overview, the coarse-to-fine strategy involves taking a large image and repeatedly downsampling and applying gaussian blur to the image
+      until it reaches a computationally tractable size. The alignment search begins on the smallest image in the pyramid across a wide range of displacements, and
+      then at each subsequent larger image the search is narrowed around the optimal displacement found in the image in the previous layer. We continue this until we
+      reache the final (original) image which should be the optimal alignment.
+      
+      <br><br>In my implementation, a Gaussian Image Pyramid was constructed such that each successive photo 
+      in the pyramid was half the size as the previous photo. I observed that the best height for my Gaussian Image Pyramid was 3
+      layers deep (excluding the original image) and that cropping 10% from the borders of each images before building the pyramid was effective at reducing misalignment errors.
+      I then started the search at the smallest images across an initial displacement search range from -30 to 30 pixel for both the x and y displacements. At each subsequent layer,
+      I search within 5 pixels of the scaled displacement (2x) from the previous layer.
+
+      <br><br>This coarse-to-fine strategy worked extremely well as it preserved optimal alignment while significantly reducing the runtime. By conducting a large search for the 
+      optimal displacement on a smaller version of the image and refining the optimal displacement as I went up the pyramid, the runtime of the align algorithm was
+      drastically reduced as I no longer had to search across a massive range of displacements on the original large image, but instead search across a very small range
+      on a very good displacement guess retrieved from a smaller image.
+
+      <br><br>However, this algorithm was not without its faults. While working extremely well for all images (both small and large), the algorithm still massively failed
+        on Emir, probably due to the fact that L2 greatly exaggerates errors due to brightness differences in the color channels rather than actual differences due to
+        the pixels themselves being different. This results in a bias towards alignments that minimize brightness differences rather than pixel content differences, resulting
+        in the highly skewed image. To alleviate this, I did try NCC and found that the alignment was even better but the misalignment was still very noticable at the cost of a higher runtime
+        due to the number of calculations required to implement NCC. Due to the negligable difference between NCC and the L2 norm at the cost of a higher runtime, I choose the L2 norm
+        over NCC for the multiscale version as well.
+
+        <br><br>Below each photo, the optimal displacment for the
+        green and blue channels are given in the format of (dx, dy) where dx represents the number of pixels to displace the x axis by and dy represents the number of pixels to
+        displace the y axis by.
+    </p>
+    <div class="image-container">
+      <figure>
+        <img src="../imgs/cathedral_multiscale.jpg" alt="Cathedral">
+        <figcaption>
+          Cathedral<br>G: (2, 5)<br>R: (3, 12)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/tobolsk_multiscale.jpg" alt="Tobolsk">
+        <figcaption>
+          Tobolsk<br>G: (3, 3)<br>R: (3, 6)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/monastery_multiscale.jpg" alt="Monastery">
+        <figcaption>
+          Monastery<br>G: (2, -3)<br>R: (2, 3)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/emir_multiscale.jpg" alt="Emir">
+        <figcaption>
+          Emir<br>G: (24, 49)<br>R: (-249, 95)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/italil_multiscale.jpg" alt="Italil">
+        <figcaption>
+          Italil<br>G: (21, 38)<br>R: (35, 76)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/church_multiscale.jpg" alt="Church">
+        <figcaption>
+          Church<br>G: (4, 25)<br>R: (-4, 58)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/three_generations_multiscale.jpg" alt="Three Generations">
+        <figcaption>
+          Three Generations<br>G: (14, 53)<br>R: (11, 112)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/lugano_multiscale.jpg" alt="Lugano">
+        <figcaption>
+          Lugano<br>G: (-16, 41)<br>R: (-29, 92)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/melons_multiscale.jpg" alt="Melons">
+        <figcaption>
+          Melons<br>G: (10, 81)<br>R: (13, 178)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/lastochikino_multiscale.jpg" alt="Lastochikino">
+        <figcaption>
+          Lastochikino<br>G: (-2, -2)<br>R: (-8, 75)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/icon_multiscale.jpg" alt="Icon">
+        <figcaption>
+          Icon<br>G: (17, 41)<br>R: (23, 89)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/siren_multiscale.jpg" alt="Siren">
+        <figcaption>
+          Siren<br>G: (-6, 49)<br>R: (-25, 95)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/self_portrait_multiscale.jpg" alt="Self Portrait">
+        <figcaption>
+          Self Portrait<br>G: (29, 78)<br>R: (37, 176)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/harvesters_multiscale.jpg" alt="Harvesters">
+        <figcaption>
+          Harvesters<br>G: (16, 59)<br>R: (13, 123)
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Favorites</h2>
+    <div class="image-container">
+      <figure>
+        <img src="../imgs/Monument_multiscale.jpg" alt="Monument">
+        <figcaption>
+          Monument<br>G: (27, 14)<br>R: (50, 85)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/Smolensk_multiscale.jpg" alt="Smolensk">
+        <figcaption>
+            Smolensk<br>G: (26, 58)<br>R: (33, 118)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/river_multiscale.jpg" alt="Vyg Lake">
+        <figcaption>
+          Vyg Lake<br>G: (-10, 23)<br>R: (-21, 97)
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Emir Corrected</h2>
+    <p>
+        Because of stark brightness difference between the green/red channels and the blue channel (Emir's dress appears to look white in the
+        .tif file for the blue channel as opposed to darker in the green/red channels), I decided to instead align the blue and red channels to the green channel,
+        hoping that the increased similarities between the red and green channels would help align the red channel more optimal. Switching the channels we aligned to
+        produced exactly the result I hoped for, producing a perfect image of Emir. The original vs corrected photo is shown below along with their optimal channel
+        displacements.
+    </p>
+    <div class="image-container">
+      <figure>
+        <img src="../imgs/emir_multiscale.jpg" alt="emir">
+        <figcaption>
+          Emir Uncorrected<br>G: (24, 49)<br>R: (-249, 95)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="../imgs/emir_corrected.jpg" alt="Emir Corrected">
+        <figcaption>
+            Emir Corrected<br>B: (-24, -49)<br>R: (17, 57)
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+</body>
+</html>
