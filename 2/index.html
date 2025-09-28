@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Project 2: Fun with Filters</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --header-h: 64px;
+      box-sizing: border-box;
+    }
+    *, *::before, *::after { box-sizing: inherit; }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(120deg, #1a1a1a, #2a2a2a);
+      color: #e0e0e0;
+    }
+
+    /* Fixed header */
+    header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 28px;
+      background: #111;
+      color: #f0f0f0;
+      font-family: 'Merriweather', serif;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      z-index: 1000;
+    }
+    .title {
+      font-size: clamp(1.0rem, 1.6vw + 0.6rem, 1.6rem);
+      font-weight: 600;
+      margin: 0;
+      flex: 1 1 auto;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .header-link {
+      padding: 8px 16px;
+      background: #1f1f1f;
+      color: #e0e0e0;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+      transition: background 0.25s ease, transform 0.15s ease;
+    }
+    .header-link:hover {
+      background: linear-gradient(120deg, #2a2a2a, #3a3a3a);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.8);
+      transform: translateY(-2px);
+      color: #fff;
+    }
+    .spacer { height: var(--header-h); }
+
+    section {
+      margin: 40px auto;
+      max-width: 1200px;
+      padding: 25px;
+      background: #1f1f1f;
+      border-radius: 16px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    section:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.8);
+    }
+
+    h2 {
+      font-family: 'Merriweather', serif;
+      font-size: 1.8rem;
+      margin-bottom: 20px;
+      border-left: 5px solid #4a90e2;
+      padding-left: 10px;
+      color: #f5f5f5;
+    }
+    h3 {
+      font-family: 'Merriweather', serif;
+      font-size: 1.4rem;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      color: #f0f0f0;
+    }
+
+    .image-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    .image-container figure {
+      text-align: center;
+    }
+    .image-container img {
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.7);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .image-container img:hover {
+      transform: scale(1.04);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.9);
+    }
+    .image-container figcaption {
+      margin-top: 8px;
+      font-size: 0.9rem;
+      color: #bbb;
+      white-space: pre-line;
+    }
+    .vertical-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* centers the figures */
+        gap: 20px; /* space between the stacked images */
+    }
+
+    .vertical-stack figure {
+        text-align: center;
+    }
+    pre {
+      background: #222;
+      color: #e0e0e0;
+      padding: 12px;
+      border-radius: 10px;
+      overflow-x: auto;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .fourier-pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: 30px; /* space between rows */
+    align-items: center;
+    }
+
+    .pipeline-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    }
+
+    .pipeline-row figure {
+    text-align: center;
+    max-width: 400px;
+    }
+
+    .pipeline-row img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0px 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .arrow {
+    font-size: 2rem;
+    font-weight: bold;
+    }
+
+    .hybrid img {
+    border: 3px solid #555; /* highlight final hybrid */
+    }
+
+    .arrow {
+    font-size: 2rem;
+    font-weight: bold;
+    }
+
+    .image-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    justify-items: center;
+    margin: 20px 0;
+    }
+
+    .image-grid img {
+    max-width: 250px;   /* adjust size to fit nicely */
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    .image-grid figcaption {
+    text-align: center;
+    font-size: 14px;
+    margin-top: 5px;
+    }
+
+    .blended-result img {
+    max-width: 400px;   /* larger size for blended results */
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    @media (max-width: 520px) {
+      :root { --header-h: 72px; }
+      header { padding: 8px 14px; }
+      .header-link { padding: 7px 12px; font-size: 0.88rem; }
+      .title { font-size: clamp(0.95rem, 2.6vw + 0.2rem, 1.25rem); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title">Project 2: Fun with Filters</div>
+    <a class="header-link" href="../index.html">Home</a>
+  </header>
+  <div class="spacer"></div>
+
+  <section>
+    <h1></h1>
+    
+    <section>
+      <h2>Part 1.1: Convolutions from Scratch!</h2>
+    <p>
+      In this part, we implemented convolutions from scratch. For the naive approach, we will use four for loops,
+      manually looping through both the kernel and the window corresponding to the kernel in order to build up the 
+      final image. Then, we will implement a more optimized approach using two for loops, where we use slicing to
+      retrieve the window corresponding to the kernel and then sum the hadamard product of the kernel and the window to
+      get an element of the final image. Additionally, our functions provide the ability to specify the padding of the image
+      in order to handle boundaries.Finally, I compared the results of the two approaches with the built-in convolution function 
+      <code>scipy.signal.convolve2d</code> checking for similarity and runtime. The runtime results on a random 400x400 matrix with a 
+      6x6 kernel were 0.0275 seconds for the standard convolution, 1.7309 seconds for the naive convolution,
+      and 0.387 seconds for the optimized convolution. As expected, the optimized convolution was way better than the naive approach
+      but still slower than the standard convolution, most likely because the standard convolution is highly optimized (for ML applications).
+    </p>
+
+    <h3>Code Snippet</h3>
+    <pre><code class="language-python">def naive_convolution(img, kernel, padding):
+    flipped_kernel = np.flip(kernel)
+    height, width = img.shape
+    
+    kernel_height, kernel_width = flipped_kernel.shape
+    new_height = 1 + height + 2*padding[0] - kernel_height
+    new_width = 1 + width + 2*padding[1] - kernel_width
+    
+    padded_img = np.pad(img, ((padding[0], padding[0]), (padding[1], padding[1])), mode='constant')
+
+    convolved_matrix = np.zeros((new_height, new_width))
+
+    for i in range(new_height):
+        for j in range(new_width):
+            conv_res = 0
+            for k in range(kernel_height):
+                for l in range(kernel_width):
+                    conv_res += padded_img[i + k][j + l] * flipped_kernel[k][l]
+            convolved_matrix[i][j] = conv_res
+
+    return convolved_matrix
+
+def optimized_convolution(img, kernel, padding):
+    flipped_kernel = np.flip(kernel)
+    height, width = img.shape
+    
+    kernel_height, kernel_width = flipped_kernel.shape
+    new_height = 1 + height + 2*padding[0] - kernel_height
+    new_width = 1 + width + 2*padding[1] - kernel_width
+    
+    padded_img = np.pad(img, ((padding[0], padding[0]), (padding[1], padding[1])), mode='constant')
+
+    convolved_matrix = np.zeros((new_height, new_width))
+
+    for i in range(new_height):
+        for j in range(new_width):
+            window = padded_img[i: i + kernel_height, j: j + kernel_width]
+            convolved_matrix[i][j] = np.sum(window * flipped_kernel)
+            
+    return convolved_matrix
+
+</code></pre>
+<p>
+  Finally, I used a picture of myself from Project 0 to test my optimized convolution function using the 9 by 9 box filter and 
+  the Dx and Dy finite difference operators. The results are shown below.
+</p>
+    <h3>Results</h3>
+    <div class="image-container">
+        <figure>
+          <img src="imgs/unugly.jpeg" alt="Original Image">
+          <figcaption>Original Image</figcaption>
+        </figure>
+        <figure>
+          <img src="imgs/unugly_boxed.jpeg" alt="Box Filter (Once)">
+          <figcaption>Box Filter (Once)</figcaption>
+        </figure>
+        <figure>
+          <img src="imgs/unugly_boxed2.jpeg" alt="Box Filter (Twice)">
+          <figcaption>Box Filter (Twice)</figcaption>
+        </figure>
+        <figure>
+          <img src="imgs/unugly_D_x.jpeg" alt="Convolution Result 4">
+          <figcaption>D<sub>x</sub> Filter</figcaption>
+        </figure>
+        <figure>
+          <img src="imgs/unugly_D_y.jpeg" alt="Convolution Result 5">
+          <figcaption>D<sub>y</sub> Filter</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>Part 1.2: Finite Difference Operator</h2>
+    <p>
+      Below, we will use convolution to find the partial derivative with respect to x and y of the cameraman image
+      and combine the results to get the gradient magnitude image which should enable use to detect all edges within the
+      image. Observe that the D<sub>x</sub> filter is good at finding horizontal edges and the D<sub>y</sub> filter is
+      good at finding vertical edges. Therefore, combining the two should yield both horizontal and vertical edges. Finally,
+      in the last photo, we binarize the gradient magnitude image using a threshold to get a more refined edge image. The
+      threshold I used was 70.
+    </p>
+
+    <h3>Results</h3>
+    <div class="image-container">
+      <figure>
+        <img src="imgs/cameraman_D_x.jpeg" alt="Cameraman Dx">
+        <figcaption>Cameraman D<sub>x</sub></figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/cameraman_D_y.jpeg" alt="Cameraman Dy">
+        <figcaption>Cameraman D<sub>y</sub></figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/cameraman_gradient_magnitude.jpeg" alt="Gradient magnitude">
+        <figcaption>Gradient Magnitude</figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/binarized_gradient_magnitude.jpeg" alt="Edge map">
+        <figcaption>Edge Image</figcaption>
+      </figure>
+    </div>
+  </section>
+
+    <section>
+      <h2>Part 1.3: Derivative of Gaussian (DoG) Filter</h2>
+    <p>
+      In the previous part, we used the Finite Difference Operator to find the images. However, you may have noticed
+      that the gradient magnitude of the cameraman image was highly perceptible to noise. Thus we shall use the
+      Derivative of Gaussian (DoG) method in order to get crisper edges in the end result. There are two ways we can do
+      DoG, we can first apply the gaussian kernel to the image and then the finite difference operator, or we can convolve
+      the gaussian with the finite difference operators and then convolve the images with the result. Either way, both
+      end edges images should result in the same edge photo. The initial gaussian filter smoothes out input noise, thus,
+      we can see that we can use a lower threshold of 20 get retrieve more real edges, while almost eliminating noise.
+      This results in a better output edge image than the finite difference method of before.
+      Also displayed with the one pass DoG filter is the corresponding kernel that we get. Observe that these are in fact, the
+      partial derivatives of the gaussian function.
+    </p>
+
+    <p>
+      P.S. You may notice that the intermediate gradient magnitudes differ in brightness. This is fine as the end result
+      uneffected but was most likely caused by differing applications of the normalization function.
+    </p>
+    <h3>Results: DoG (Two-Pass Method)</h3>
+    <div class="image-container">
+      <figure>
+        <img src="imgs/cameraman_D_x.jpeg" alt="DoG Two-Pass Dx">
+        <figcaption>
+          DoG Two-Pass<br>D<sub>x</sub>
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/cameraman_D_y.jpeg" alt="DoG Two-Pass Dy">
+        <figcaption>
+          DoG Two-Pass<br>D<sub>y</sub>
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/blurred_gradient_magnitude.jpeg" alt="DoG Gradient Magnitude">
+        <figcaption>
+          Gradient Magnitude<br>(Two-Pass)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/binarized_blurred_gradient_magnitude.jpeg" alt="DoG Edge Image">
+        <figcaption>
+          Edge Image
+        </figcaption>
+      </figure>
+    </div>
+  
+    <h3>Results: DoG (One-Pass Method)</h3>
+    <div class="image-container">
+      <figure>
+        <img src="imgs/cameraman_D_x.jpeg" alt="DoG One-Pass Dx">
+        <figcaption>
+          DoG One-Pass D<sub>x</sub>
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/cameraman_D_y.jpeg" alt="DoG One-Pass Dy">
+        <figcaption>
+          DoG One-Pass D<sub>y</sub>
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/one_pass_gradient_magnitude.jpeg" alt="DoG Gradient Magnitude">
+        <figcaption>
+          Gradient Magnitude (One-Pass)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/binarized_one_pass_gradient_magnitude.jpeg" alt="DoG Edge Image">
+        <figcaption>
+          Edge Image<br>
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/D_x_g.jpeg" alt="DoG Kernel Dx">
+        <figcaption>
+          DoG Kernel D<sub>x</sub>
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/D_y_g.jpeg" alt="DoG Kernel Dy">
+        <figcaption>
+          DoG Kernel D<sub>y</sub>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+    <section>
+      <h2>Part 2.1: Image "Sharpening"</h2>
+    <p>
+      In this part, we implement <em>unsharp masking</em>. Unsharp masking works by
+      apply a Gaussian filter to the original image in order to obtain a blurred (low-frequency)
+      version of the image since the Gaussian filter removes the high frequency components.
+      Then we subtract the blurred image from the original image to then obtain the high-frequencies.
+      Finally, we add a scaled (by alpha) version of the high-frequency image to the original image, yield a sharper
+      photo. Below, we have the original Taj Mahal, the high-frequency version of the Taj Mahal and then the
+      sharpened Taj Mahal using the procedure defined above on the original image.
+    </p>
+  
+    <h3>Results on Taj Image</h3>
+    <div class="image-container">
+      <figure>
+        <img src="imgs/taj.jpg" alt="Original Taj Mahal">
+        <figcaption>
+          Original Taj Mahal
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/taj_blurred.jpg" alt="Blurred Taj Mahal">
+        <figcaption>
+          Blurred Taj Mahal
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/taj_sharpened_1.jpg" alt="Blurred Taj">
+        <figcaption>
+          Sharpened Taj Mahal
+        </figcaption>
+      </figure>
+    </div>
+  
+    <h3>Evaluation on Sharp Image</h3>
+    <p>
+      To see how good this method is, I took a photo from my trip to London a while back, artificially blurred
+      the image and then applied the sharpening technique discussed above. We observe that the "resharpened" image
+      does look sharper than the blurred image, however, finer details such as brick cracks are lost, probably because
+      the Gaussian blur removed a lot of information that the original photo posed and that the unsharpening technique
+      could not retrieve back.
+    </p>
+    <div class="image-container">
+      <figure>
+        <img src="imgs/britain.jpeg" alt="Original Sharp Image">
+        <figcaption>
+          Original Sharp Image
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/britain_blurred.jpeg" alt="Blurred Sharp Image">
+        <figcaption>
+          Artificially Blurred
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/britain_sharpened.jpeg" alt="Recovered Image">
+        <figcaption>
+          Sharpened After Blur<br>(Unsharp Mask)
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+    <section>
+      <h2>Part 2.2: Hybrid Images</h2>
+    <p>
+      By combining the low-frequency element of one image and the high-frequency element of another image, we can see
+      two images in one! One image (the one with the higher frequency) will dominate the other at close range, where as
+      the other will dominate at higher ranges.
+    </p>
+  
+    <h3>Custom Hybrid Images</h3>
+    <div class="image-container vertical-stack">
+      <figure>
+        <img src="imgs/old_new_hybrid.jpeg" alt="Hybrid Teaser Image">
+        <figcaption>
+          GT3RS vs. Original 911
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/happy_sad_hybrid.jpeg" alt="Hybrid Teaser Image">
+        <figcaption>
+          Geeked vs Locked In
+        </figcaption>
+      </figure>
+    </div>
+  
+    <h3>Example Pair Construction</h3>
+    <div class="image-container">
+      <figure>
+        <img src="imgs/DerekPicture.jpg" alt="Derek Input">
+        <figcaption>
+          Derek <br>High-pass filtered
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/nutmeg.jpg" alt="Nutmeg Input">
+        <figcaption>
+          Nutmeg <br>Low-pass filtered
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/derek_nutmeg_hybrid.jpg" alt="Hybrid Derek + Nutmeg">
+        <figcaption>
+          Hybrid Result<br>(Derek + Nutmeg)
+        </figcaption>
+      </figure>
+    </div>
+
+    <h3>Gi-Hun Construction</h3>
+    <div class="image-container">
+      <figure>
+        <img src="imgs/gihun_happy.jpeg" alt="Derek Input">
+        <figcaption>
+          Geeked Gi-Hun <br>Low-pass filtered
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/gihun_sad.jpeg" alt="Nutmeg Input">
+        <figcaption>
+          Locked in Gi-Hun <br>High-pass filtered
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/happy_sad_hybrid.jpeg" alt="Hybrid Derek + Nutmeg">
+        <figcaption>
+          Hybrid Result<br>(Geeked + Locked in)
+        </figcaption>
+      </figure>
+    </div>
+  
+    <h3>Analysis of GT3RS/911 Hybrid Image</h3>
+    <p>
+      Observe below that the high frequencies of the GT3RS are combined with the low frequencies of the 911
+      in order to get a hybrid photo of both. I used a cutoff frequency of sigma=2 for the GT3RS and a cutoff
+      frequency of sigma=3 for the 911.
+    </p>
+    <div class="fourier-pipeline">
+        <div class="pipeline-row">
+            <figure>
+              <img src="imgs/911.jpeg" alt="Fourier of 911">
+              <figcaption>Original 911</figcaption>
+            </figure>
+            <span class="arrow">→</span>
+            <figure>
+              <img src="imgs/911_aligned 2.jpeg" alt="Filtered Fourier 911">
+              <figcaption>911 Aligned</figcaption>
+            </figure>
+            <span class="arrow">→</span>
+            <figure>
+              <img src="imgs/911_filtered.jpeg" alt="Filtered Fourier 911">
+              <figcaption>Filtered 911</figcaption>
+            </figure>
+          </div>
+        
+          <div class="pipeline-row">
+            <figure>
+              <img src="imgs/gt3rs.jpeg" alt="Fourier of GT3RS">
+              <figcaption>GT3RS</figcaption>
+            </figure>
+            <span class="arrow">→</span>
+            <figure>
+              <img src="imgs/gt3rs_aligned 2.jpeg" alt="Fourier of GT3RS">
+              <figcaption>GT3RS Aligned</figcaption>
+            </figure>
+            <span class="arrow">→</span>
+            <figure>
+              <img src="imgs/gt3rs_filtered.jpeg" alt="Filtered Fourier GT3RS">
+              <figcaption>Filtered GT3RS</figcaption>
+            </figure>
+    
+          </div>
+      <div class="pipeline-row">
+        <figure>
+          <img src="imgs/911_fourier.jpeg" alt="Fourier of 911">
+          <figcaption>Fourier of 911</figcaption>
+        </figure>
+        <span class="arrow">→</span>
+        <figure>
+          <img src="imgs/911_filtered_fourier.jpeg" alt="Filtered Fourier 911">
+          <figcaption>Filtered Fourier 911</figcaption>
+        </figure>
+      </div>
+    
+      <div class="pipeline-row">
+        <figure>
+          <img src="imgs/gt3rs_fourier.jpeg" alt="Fourier of GT3RS">
+          <figcaption>Fourier of GT3RS</figcaption>
+        </figure>
+        <span class="arrow">→</span>
+        <figure>
+          <img src="imgs/gt3rs_filtered_fourier.jpeg" alt="Filtered Fourier GT3RS">
+          <figcaption>Filtered Fourier GT3RS</figcaption>
+        </figure>
+
+      </div>
+    </div>
+    <div class="pipeline-row">
+        <figure class="hybrid">
+          <img src="imgs/hybrid_fourier.jpeg" alt="Fourier of Hybrid">
+          <figcaption>Fourier of Hybrid Image</figcaption>
+        </figure>
+    </div>
+
+  </section>
+
+    <section>
+      <h2>Part 2.3 + 2.4: Gaussian and Laplacian Stacks & Multiresolution Blending</h2>
+    <p>
+    Below are the results of applying multiresolution blending to the apple and orange images to get the 
+    oraple, to the Ford and Ferrari to get the Forrari, and the in-construction and fully build SF city hall.
+    </p>
+    <h3>Orange Gaussian Stack</h3>
+    <div class="image-container">
+        <figure>
+            <img src="layers/orange_gaussian_0.jpeg" alt="Orange Gaussian stack level 0">
+            <figcaption>Orange Gaussian Level 0</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/orange_gaussian_1.jpeg" alt="Orange Gaussian stack level 1">
+            <figcaption>Orange Gaussian Level 1</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/orange_gaussian_2.jpeg" alt="Orange Gaussian stack level 2">
+            <figcaption>Orange Gaussian Level 2</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/orange_gaussian_3.jpeg" alt="Orange Gaussian stack level 3">
+            <figcaption>Orange Gaussian Level 3</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/orange_gaussian_4.jpeg" alt="Orange Gaussian stack level 4">
+            <figcaption>Orange Gaussian Level 4</figcaption>
+        </figure>
+    </div>
+    <h3>Apple Gaussian Stack</h3>
+    <div class="image-container">
+        <figure>
+            <img src="layers/apple_gaussian_0.jpeg" alt="Apple Gaussian stack level 0">
+            <figcaption>Apple Gaussian Level 0</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/apple_gaussian_1.jpeg" alt="Apple Gaussian stack level 1">
+            <figcaption>Apple Gaussian Level 1</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/apple_gaussian_2.jpeg" alt="Apple Gaussian stack level 2">
+            <figcaption>Apple Gaussian Level 2</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/apple_gaussian_3.jpeg" alt="Apple Gaussian stack level 3">
+            <figcaption>Apple Gaussian Level 3</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/apple_gaussian_4.jpeg" alt="Apple Gaussian stack level 4">
+            <figcaption>Apple Gaussian Level 4</figcaption>
+        </figure>
+    </div>
+    <h3>Oraple Laplacian Stacks</h3>
+    <div class="image-container">
+        <!-- Oraple -->
+        <figure>
+            <img src="layers/oraple_left_0.jpeg" alt="Apple Gaussian stack level 0">
+            <figcaption>Apple Laplacian Level 0</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/oraple_right_0.jpeg" alt="Orange Gaussian stack level 0">
+            <figcaption>Orange Laplacian Level 0</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/oraple_0.jpeg" alt="Oraple blended result level 0">
+            <figcaption>Oraple Blended Level 0</figcaption>
+        </figure>
+    
+        <figure>
+            <img src="layers/oraple_left_1.jpeg" alt="Apple Gaussian stack level 1">
+            <figcaption>Apple Laplacian Level 1</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/oraple_right_1.jpeg" alt="Orange Gaussian stack level 1">
+            <figcaption>Orange Laplacian Level 1</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/oraple_1.jpeg" alt="Oraple blended result level 1">
+            <figcaption>Oraple Blended Level 1</figcaption>
+        </figure>
+    
+        <figure>
+            <img src="layers/oraple_left_2.jpeg" alt="Apple Gaussian stack level 2">
+            <figcaption>Apple Laplacian Level 2</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/oraple_right_2.jpeg" alt="Orange Gaussian stack level 2">
+            <figcaption>Orange Laplacian Level 2</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/oraple_2.jpeg" alt="Oraple blended result level 2">
+            <figcaption>Oraple Blended Level 2</figcaption>
+        </figure>
+    
+        <figure>
+            <img src="layers/oraple_left_3.jpeg" alt="Apple Gaussian stack level 3">
+            <figcaption>Apple Laplacian Level 3</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/oraple_right_3.jpeg" alt="Orange Gaussian stack level 3">
+            <figcaption>Orange Laplacian Level 3</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/oraple_3.jpeg" alt="Oraple blended result level 3">
+            <figcaption>Oraple Blended Level 3</figcaption>
+        </figure>
+    
+        <figure>
+            <img src="layers/oraple_left_4.jpeg" alt="Apple Gaussian stack level 4">
+            <figcaption>Apple Gaussian Level 4</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/oraple_right_4.jpeg" alt="Orange Gaussian stack level 4">
+            <figcaption>Orange Gaussian Level 4</figcaption>
+        </figure>
+        <figure>
+          <img src="layers/oraple_4.jpeg" alt="Oraple blended result level 4">
+          <figcaption>Oraple Blended Level 4</figcaption>
+      </figure>
+    </div>
+     <div class="image-container">
+       <figure>
+           <img src="imgs/apple.jpeg" alt="Original apple image">
+           <figcaption>Original Apple</figcaption>
+       </figure>
+       <figure>
+         <img src="imgs/orange.jpeg" alt="Original orange image">
+         <figcaption>Original Orange</figcaption>
+     </figure>
+     <figure>
+       <img src="imgs/gradient_mask.png" alt="Gradient mask for blending">
+       <figcaption>Gradient Mask</figcaption>
+   </figure>
+     </div>
+    </div>
+     <div class="image-container blended-result">
+       <figure>
+           <img src="imgs/blended_oraple.png" alt="Final blended Oraple result">
+           <figcaption>Blended Oraple</figcaption>
+       </figure>
+   </div>
+    <h3>Forrari Laplacian Stacks</h3>
+    <div class="image-container">
+        <!-- Forrari -->
+        <figure>
+            <img src="layers/forrari_left_0.jpeg" alt="Ferrari Gaussian stack level 0">
+            <figcaption>Ferrari Laplacian Level 0</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/forrari_right_0.jpeg" alt="Ford Gaussian stack level 0">
+            <figcaption>Ford Laplacian Level 0</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/forrari_0.jpeg" alt="Forrari blended result level 0">
+            <figcaption>Forrari Blended Level 0</figcaption>
+        </figure>
+    
+        <figure>
+            <img src="layers/forrari_left_1.jpeg" alt="Ferrari Gaussian stack level 1">
+            <figcaption>Ferrari Laplacian Level 1</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/forrari_right_1.jpeg" alt="Ford Gaussian stack level 1">
+            <figcaption>Ford Laplacian Level 1</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/forrari_1.jpeg" alt="Forrari blended result level 1">
+            <figcaption>Forrari Blended Level 1</figcaption>
+        </figure>
+    
+        <figure>
+            <img src="layers/forrari_left_2.jpeg" alt="Ferrari Gaussian stack level 2">
+            <figcaption>Ferrari Laplacian Level 2</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/forrari_right_2.jpeg" alt="Ford Gaussian stack level 2">
+            <figcaption>Ford Laplacian Level 2</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/forrari_2.jpeg" alt="Forrari blended result level 2">
+            <figcaption>Forrari Blended Level 2</figcaption>
+        </figure>
+    
+        <figure>
+            <img src="layers/forrari_left_3.jpeg" alt="Ferrari Gaussian stack level 3">
+            <figcaption>Ferrari Laplacian Level 3</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/forrari_right_3.jpeg" alt="Ford Gaussian stack level 3">
+            <figcaption>Ford Laplacian Level 3</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/forrari_3.jpeg" alt="Forrari blended result level 3">
+            <figcaption>Forrari Blended Level 3</figcaption>
+        </figure>
+    
+        <figure>
+            <img src="layers/forrari_left_4.jpeg" alt="Ferrari Gaussian stack level 4">
+            <figcaption>Ferrari Gaussian Level 4</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/forrari_right_4.jpeg" alt="Ford Gaussian stack level 4">
+            <figcaption>Ford Gaussian Level 4</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/forrari_4.jpeg" alt="Forrari blended result level 4">
+            <figcaption>Forrari Blended Level 4</figcaption>
+        </figure>
+    </div>
+    <div class="image-container">
+        <figure>
+            <img src="imgs/ferrari.jpeg" alt="Original Ferrari image">
+            <figcaption>Original Ferrari</figcaption>
+        </figure>
+        <figure>
+          <img src="imgs/ford.jpeg" alt="Original Ford image">
+          <figcaption>Original Ford</figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/ford_mask_optimal_2.jpeg" alt="Ford mask for blending">
+        <figcaption>Ford Mask</figcaption>
+    </figure>
+    </div>
+    <div class="image-container blended-result">
+      <figure>
+          <img src="imgs/blended_forrari.png" alt="Final blended Forrari result">
+          <figcaption>Blended Forrari</figcaption>
+      </figure>
+  </div>
+    <h3>City Hall Laplacian Stacks</h3>
+    <div class="image-container">
+        <!-- City Hall -->
+        <figure>
+            <img src="layers/city_hall_left_0.jpeg" alt="Built structure Gaussian stack level 0">
+            <figcaption>Built Structure Laplacian Level 0</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/city_hall_right_0.jpeg" alt="Construction site Gaussian stack level 0">
+            <figcaption>Construction Site Laplacian Level 0</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/city_hall_0.jpeg" alt="City Hall blended result level 0">
+            <figcaption>City Hall Blended Level 0</figcaption>
+        </figure>
+    
+        <figure>
+            <img src="layers/city_hall_left_1.jpeg" alt="Built structure Gaussian stack level 1">
+            <figcaption>Built Structure Laplacian Level 1</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/city_hall_right_1.jpeg" alt="Construction site Gaussian stack level 1">
+            <figcaption>Construction Site Laplacian Level 1</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/city_hall_1.jpeg" alt="City Hall blended result level 1">
+            <figcaption>City Hall Blended Level 1</figcaption>
+        </figure>
+    
+        <figure>
+            <img src="layers/city_hall_left_2.jpeg" alt="Built structure Gaussian stack level 2">
+            <figcaption>Built Structure Laplacian Level 2</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/city_hall_right_2.jpeg" alt="Construction site Gaussian stack level 2">
+            <figcaption>Construction Site Laplacian Level 2</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/city_hall_2.jpeg" alt="City Hall blended result level 2">
+            <figcaption>City Hall Blended Level 2</figcaption>
+        </figure>
+    
+        <figure>
+            <img src="layers/city_hall_left_3.jpeg" alt="Built structure Gaussian stack level 3">
+            <figcaption>Built Structure Laplacian Level 3</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/city_hall_right_3.jpeg" alt="Construction site Gaussian stack level 3">
+            <figcaption>Construction Site Laplacian Level 3</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/city_hall_3.jpeg" alt="City Hall blended result level 3">
+            <figcaption>City Hall Blended Level 3</figcaption>
+        </figure>
+    
+        <figure>
+            <img src="layers/city_hall_left_4.jpeg" alt="Built structure Gaussian stack level 4">
+            <figcaption>Built Structure Gaussian Level 4</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/city_hall_right_4.jpeg" alt="Construction site Gaussian stack level 4">
+            <figcaption>Construction Site Gaussian Level 4</figcaption>
+        </figure>
+        <figure>
+            <img src="layers/city_hall_4.jpeg" alt="City Hall blended result level 4">
+            <figcaption>City Hall Blended Level 4</figcaption>
+        </figure>
+    </div>
+    <div class="image-container">
+      <figure>
+          <img src="imgs/built.jpeg" alt="Original built structure image">
+          <figcaption>Built Structure</figcaption>
+      </figure>
+      <figure>
+        <img src="imgs/construction.jpeg" alt="Original construction site image">
+        <figcaption>Construction Site</figcaption>
+    </figure>
+    <figure>
+      <img src="imgs/city_hall_mask.jpeg" alt="City Hall mask for blending">
+      <figcaption>City Hall Mask</figcaption>
+  </figure>
+</div>
+<div class="image-container blended-result">
+  <figure>
+      <img src="imgs/blended_city_hall.png" alt="Final blended City Hall result">
+      <figcaption>Blended City Hall</figcaption>
+  </figure>
+</div>
+    </section>
+  </section>
+
+</body>
+</html>
