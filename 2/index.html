@@ -450,7 +450,7 @@ def optimized_convolution(img, kernel, padding):
       applying a Gaussian filter to the original image in order to obtain a blurred (low-frequency)
       version of the image since the Gaussian filter removes the high frequency components.
       Then we subtract the blurred image from the original image to then obtain the high-frequencies.
-      Finally, we add a scaled (by alpha) version of the high-frequency image to the original image, yield a sharper
+      Finally, we add a scaled (by alpha) version of the high-frequency image to the original image, yielding a sharper
       photo. Below, we have the original Taj Mahal, the high-frequency version of the Taj Mahal and then the
       sharpened Taj Mahal using the procedure defined above on the original image.
     </p>
@@ -583,13 +583,13 @@ def optimized_convolution(img, kernel, padding):
   
     <h3>Analysis of GT3RS/911 Hybrid Image</h3>
     <p>
-      Observe below that the high frequencies of the GT3RS are combined with the low frequencies of the 911
+      Observe below that the low frequencies of the GT3RS are combined with the high frequencies of the 911
       in order to get a hybrid photo of both. I used a cutoff frequency of sigma=2 for the GT3RS and a cutoff
       frequency of sigma=3 for the 911. Observe that for the GT3RS, we can clearly see that the low-frequency elements
       (towards the center of the fourier transform graph) are preserved whereas the high-frequency elements vanish. Likewise,
       observe that the low-frequency elements in the 911 fourier transform vanish whereas the high-frequency elements remain.
-      Finally, then observed that the 911+GT3RS hybrid image's fourier transform contains the low-frequency elements of the GT3RS
-      and the high-frequency elements of the 911. This results in the intended effect of see the GT3RS at further ranges while
+      Finally, then observe that the 911+GT3RS hybrid image's fourier transform contains the low-frequency elements of the GT3RS
+      and the high-frequency elements of the 911. This results in the intended effect of seeing the GT3RS at further ranges while
       seeing the Original 911 at closer ranges.
     </p>
     <div class="fourier-pipeline">
@@ -667,7 +667,7 @@ def optimized_convolution(img, kernel, padding):
       and Laplacian stacks we will be using to acheive Multiresolution Blending. Constructing a Gaussian stack is
       relatively straightforward; we simply repeatedly convolve the image with the Gaussian kernel until we acheive the 
       desired height. Then, in order to get the Laplacian stack, we first find the Gaussian stack of the image and subtract
-      successive elements within the Gaussian stacks from each other and then placing the last element of the Gaussian stack
+      successive elements within the Gaussian stacks from each other and then place the last element of the Gaussian stack
       on top to retrieve our full Laplacian stack.
     </p>
     <p>
@@ -734,7 +734,7 @@ def optimized_convolution(img, kernel, padding):
     <h3>Oraple Laplacian Stacks</h3>
       <p>
         Here, we have the Laplacian stacks of the orange and apple images (after being weighted by the Gaussian blurred mask filter). Additionally,
-        we also have their combinations on the far right hand side. Observed that smashing together the combined weighted laplacian stacks yields us the
+        we also have their combinations on the far right hand side. Observe that smashing together the combined weighted laplacian stacks yields us the
         very cool oraple image. We can see the same procedure for the Forraria and the City Hall below.
       </p>
     <div class="image-container">
