@@ -669,11 +669,13 @@ def optimized_convolution(img, kernel, padding):
       by Burt and Adelson but I will re-explain it here for completion. We first retrieve the Laplacian stacks for the apple and
       the orange. Then, we retrieve the Gaussian stack for the mask filter we have chosen. Finally, we form a combined Laplacian stack
       from the Laplacian stacks for the apple and the orange, using the corresponding layer in the Gaussian stack of the mask as weights.
-      Finally, we obtain the oraple by summing together all layers in the resulting Laplacian stack from the algorithm before. Below are
-      the results of applying multiresolution blending to the apple and orange images to get the oraple, to the Ford and Ferrari to get
-      the Forrari, and the in-construction and fully build SF city hall.
+      Finally, we obtain the oraple by summing together all layers in the resulting Laplacian stack from the algorithm before.
     </p>
     <h3>Orange Gaussian Stack</h3>
+      <p>
+        I demonstrate the results of my Gaussian stack construction algorithm by applying it to the orange image. Notice that the further we go
+        down, the more blurred the image becomes.
+      </p>
     <div class="image-container">
         <figure>
             <img src="layers/orange_gaussian_0.jpeg" alt="Orange Gaussian stack level 0">
@@ -697,6 +699,10 @@ def optimized_convolution(img, kernel, padding):
         </figure>
     </div>
     <h3>Apple Gaussian Stack</h3>
+      <p>
+        I also demonstrate the results of my Gaussian stack construction algorithm by applying it to the apple image. Notice that the further we go
+        down, the more blurred the image becomes.
+      </p>
     <div class="image-container">
         <figure>
             <img src="layers/apple_gaussian_0.jpeg" alt="Apple Gaussian stack level 0">
@@ -720,6 +726,11 @@ def optimized_convolution(img, kernel, padding):
         </figure>
     </div>
     <h3>Oraple Laplacian Stacks</h3>
+      <p>
+        Here, we have the Laplacian stacks of the orange and apple images (after being weighted by the Gaussian blurred mask filter). Additionally,
+        we also have their combinations on the far right hand side. Observed that smashing together the combined weighted laplacian stacks yields us the
+        very cool oraple image. We can see the same procedure for the Forraria and the City Hall below.
+      </p>
     <div class="image-container">
         <!-- Oraple -->
         <figure>
