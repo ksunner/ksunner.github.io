@@ -237,7 +237,7 @@
       final image. Then, we will implement a more optimized approach using two for loops, where we use slicing to
       retrieve the window corresponding to the kernel and then sum the hadamard product of the kernel and the window to
       get an element of the final image. Additionally, our functions provide the ability to specify the padding of the image
-      in order to handle boundaries.Finally, I compared the results of the two approaches with the built-in convolution function 
+      in order to handle boundaries. Finally, I compared the results of the two approaches with the built-in convolution function 
       <code>scipy.signal.convolve2d</code> checking for similarity and runtime. The runtime results on a random 400x400 matrix with a 
       6x6 kernel were 0.0275 seconds for the standard convolution, 1.7309 seconds for the naive convolution,
       and 0.387 seconds for the optimized convolution. As expected, the optimized convolution was way better than the naive approach
@@ -289,7 +289,8 @@ def optimized_convolution(img, kernel, padding):
 </code></pre>
 <p>
   Finally, I used a picture of myself from Project 0 to test my optimized convolution function using the 9 by 9 box filter and 
-  the Dx and Dy finite difference operators. The results are shown below.
+  the Dx and Dy finite difference operators. The 9 by 9 box filter should effectively blur my images where as the 
+  finite difference operators should display the horizontal and vertical edges. The results are shown below.
 </p>
     <h3>Results</h3>
     <div class="image-container">
@@ -324,7 +325,7 @@ def optimized_convolution(img, kernel, padding):
       image. Observe that the D<sub>x</sub> filter is good at finding horizontal edges and the D<sub>y</sub> filter is
       good at finding vertical edges. Therefore, combining the two should yield both horizontal and vertical edges. Finally,
       in the last photo, we binarize the gradient magnitude image using a threshold to get a more refined edge image. The
-      threshold I used was 70.
+      threshold I used was 70 which was good as it preserved real edges while mostly eliminating other "fake" edges. 
     </p>
 
     <h3>Results</h3>
@@ -440,7 +441,7 @@ def optimized_convolution(img, kernel, padding):
       <h2>Part 2.1: Image "Sharpening"</h2>
     <p>
       In this part, we implement <em>unsharp masking</em>. Unsharp masking works by
-      apply a Gaussian filter to the original image in order to obtain a blurred (low-frequency)
+      applying a Gaussian filter to the original image in order to obtain a blurred (low-frequency)
       version of the image since the Gaussian filter removes the high frequency components.
       Then we subtract the blurred image from the original image to then obtain the high-frequencies.
       Finally, we add a scaled (by alpha) version of the high-frequency image to the original image, yield a sharper
@@ -475,7 +476,7 @@ def optimized_convolution(img, kernel, padding):
       To see how good this method is, I took a photo from my trip to London a while back, artificially blurred
       the image and then applied the sharpening technique discussed above. We observe that the "resharpened" image
       does look sharper than the blurred image, however, finer details such as brick cracks are lost, probably because
-      the Gaussian blur removed a lot of information that the original photo posed and that the unsharpening technique
+      the Gaussian blur removed a lot of information that the original photo possesed and that the unsharpening technique
       could not retrieve back.
     </p>
     <div class="image-container">
@@ -505,7 +506,13 @@ def optimized_convolution(img, kernel, padding):
     <p>
       By combining the low-frequency element of one image and the high-frequency element of another image, we can see
       two images in one! One image (the one with the higher frequency) will dominate the other at close range, where as
-      the other will dominate at higher ranges.
+      the other low-frequency image will dominate at higher ranges. We can retrieve the low-frequency element of one image by simply convolving
+      the image with the gaussian kernel (similar to the low pass filter used to blur an image to later sharpen it). Then,
+      we can get the high-frequency element of another image by first blurring the image and then substracting from it the original
+      image. However, we can further optimize the high pass filter by doing this frequency extraction in one pass, by convolving the
+      image with the unit impulse kernel minus the gaussian kernel. This will result in the high-frequency elements of the image. Finally,
+      we can simply add together both images to achieve the desired effect. Below, I have three example, Derek + Nutmeg, Locked + Geeked, and
+      911 + GT3RS. Try moving far to close (or squinting your eyes) to see both images!
     </p>
   
     <h3>Custom Hybrid Images</h3>
@@ -572,7 +579,12 @@ def optimized_convolution(img, kernel, padding):
     <p>
       Observe below that the high frequencies of the GT3RS are combined with the low frequencies of the 911
       in order to get a hybrid photo of both. I used a cutoff frequency of sigma=2 for the GT3RS and a cutoff
-      frequency of sigma=3 for the 911.
+      frequency of sigma=3 for the 911. Observe that for the GT3RS, we can clearly see that the low-frequency elements
+      (towards the center of the fourier transform graph) are preserved whereas the high-frequency elements vanish. Likewise,
+      observe that the low-frequency elements in the 911 fourier transform vanish whereas the high-frequency elements remain.
+      Finally, then observed that the 911+GT3RS hybrid image's fourier transform contains the low-frequency elements of the GT3RS
+      and the high-frequency elements of the 911. This results in the intended effect of see the GT3RS at further ranges while
+      seeing the Original 911 at closer ranges.
     </p>
     <div class="fourier-pipeline">
         <div class="pipeline-row">
@@ -645,9 +657,21 @@ def optimized_convolution(img, kernel, padding):
 
     <section>
       <h2>Part 2.3 + 2.4: Gaussian and Laplacian Stacks & Multiresolution Blending</h2>
+    <p> Before we can even discuss Multiresolution Blending, we must first figure out how to construct the Gaussian
+      and Laplacian stacks we will be using to acheive Multiresolution Blending. Constructing a Gaussian stack is
+      relatively straightforward; we simply repeatedly convolve the image with the Gaussian kernel until we acheive the 
+      desired height. Then, in order to get the Laplacian stack, we first find the Gaussian stack of the image and subtract
+      successive elements within the Gaussian stacks from each other and then placing the last element of the Gaussian stack
+      on top to retrieve our full Laplacian stack.
+    </p>
     <p>
-    Below are the results of applying multiresolution blending to the apple and orange images to get the 
-    oraple, to the Ford and Ferrari to get the Forrari, and the in-construction and fully build SF city hall.
+      We can then use Gaussian and Laplacian stacks to acheive multiresolution blending. The algorithm that I used is discussed
+      by Burt and Adelson but I will re-explain it here for completion. We first retrieve the Laplacian stacks for the apple and
+      the orange. Then, we retrieve the Gaussian stack for the mask filter we have chosen. Finally, we form a combined Laplacian stack
+      from the Laplacian stacks for the apple and the orange, using the corresponding layer in the Gaussian stack of the mask as weights.
+      Finally, we obtain the oraple by summing together all layers in the resulting Laplacian stack from the algorithm before. Below are
+      the results of applying multiresolution blending to the apple and orange images to get the oraple, to the Ford and Ferrari to get
+      the Forrari, and the in-construction and fully build SF city hall.
     </p>
     <h3>Orange Gaussian Stack</h3>
     <div class="image-container">
