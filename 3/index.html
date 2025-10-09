@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Project 3: Image Warping and Mosaicing</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    :root {
+      --header-h: 64px;
+      box-sizing: border-box;
+    }
+    *, *::before, *::after { box-sizing: inherit; }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(120deg, #1a1a1a, #2a2a2a);
+      color: #e0e0e0;
+    }
+
+    /* Fixed header */
+    header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 28px;
+      background: #111;
+      color: #f0f0f0;
+      font-family: 'Merriweather', serif;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      z-index: 1000;
+    }
+    .title {
+      font-size: clamp(1.0rem, 1.6vw + 0.6rem, 1.6rem);
+      font-weight: 600;
+      margin: 0;
+      flex: 1 1 auto;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .header-link {
+      padding: 8px 16px;
+      background: #1f1f1f;
+      color: #e0e0e0;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+      transition: background 0.25s ease, transform 0.15s ease;
+    }
+    .header-link:hover {
+      background: linear-gradient(120deg, #2a2a2a, #3a3a3a);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.8);
+      transform: translateY(-2px);
+      color: #fff;
+    }
+    .spacer { height: var(--header-h); }
+
+    section {
+      margin: 40px auto;
+      max-width: 1200px;
+      padding: 25px;
+      background: #1f1f1f;
+      border-radius: 16px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    section:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.8);
+    }
+
+    h1 {
+      font-family: 'Merriweather', serif;
+      font-size: 2.2rem;
+    }
+    h2 {
+      font-family: 'Merriweather', serif;
+      font-size: 1.8rem;
+      margin-bottom: 20px;
+      border-left: 5px solid #4a90e2;
+      padding-left: 10px;
+      color: #f5f5f5;
+    }
+    h3 {
+      font-family: 'Merriweather', serif;
+      font-size: 1.4rem;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      color: #f0f0f0;
+    }
+
+    .image-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 15px;
+      margin: 15px auto; /* Centered with auto margins */
+    }
+    .image-container figure {
+      text-align: center;
+      margin: 0;
+    }
+    .image-container img {
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.7);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .image-container img:hover {
+      transform: scale(1.04);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.9);
+    }
+    .image-container figcaption {
+      margin-top: 8px;
+      font-size: 0.9rem;
+      color: #bbb;
+      white-space: pre-line;
+    }
+    
+    .single-image-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+        margin-bottom: 20px; /* Added some margin for spacing */
+    }
+    .single-image-container figure {
+        text-align: center;
+        max-width: 90%; /* Ensures the figure itself is not too wide */
+        margin: 0; /* Remove default figure margin */
+    }
+    .single-image-container img {
+        max-width: 100%; /* Ensures the image fits within its figure/container */
+        height: auto;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.7);
+        transition: transform 0.3s ease, box-shadow 0.3s ease; /* Added for the zoom effect */
+    }
+    .single-image-container img:hover {
+      transform: scale(1.02); /* Slightly less zoom for large panoramas */
+      box-shadow: 0 8px 20px rgba(0,0,0,0.9);
+    }
+
+    pre {
+      background: #222;
+      color: #e0e0e0;
+      padding: 12px;
+      border-radius: 10px;
+      overflow-x: auto;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 520px) {
+      :root { --header-h: 72px; }
+      header { padding: 8px 14px; }
+      .header-link { padding: 7px 12px; font-size: 0.88rem; }
+      .title { font-size: clamp(0.95rem, 2.6vw + 0.2rem, 1.25rem); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title">Project 3: Image Warping and Mosaicing</div>
+    <a class="header-link" href="../index.html">Home</a>
+  </header>
+  <div class="spacer"></div>
+
+  <section>
+    <h1>Image Warping and Mosaicing</h1>
+    <p>
+        This project uses homography transformation in order (1) warp images to rectify images (e.g. take quadrilateral and warp them into squares) and (2) construct mosaic by stiching together photo
+        such that we get one large photo. This part of the project was really fun; I got to take my own photos, stitch them together and see a very cool 
+        resulting mosaic at the end. Furthermore, I used homography transformation in my Computer Vision research to reconstruct birds eye views of scenery, so seeing
+        how homographic transform worked under the hood was extremely interesting.
+    </p>
+  </section>
+  
+  <section>
+    <h2>Part A.1: Shooting the Pictures</h2>
+    <p>
+      The first step was to capture sets of images with projective transformations between them so that I could use it later on
+      when making mosaics. I achieved this by standing in one spot and rotating my camera, ensuring the center of projection remained fixed.
+      I aimed for about 50% overlap between consecutive shots to provide enough common features for alignment (or shots such that there were common
+      identifiable landmarks in each photo). Below are photographs from across UC Berkeley, one being in front of the Haas Pavilion and the other
+      two being photographs of Doe Library standing from different vantage points.
+    </p>
+    <h3>Image Set 1: Doe Library from Grimes Center</h3>
+    <div class="image-container">
+        <figure>
+          <img src="imgs/doe_left.png" alt="Doe Library Left">
+          <figcaption>Left Image</figcaption>
+        </figure>
+        <figure>
+          <img src="imgs/doe_right.png" alt="Doe Library Right">
+          <figcaption>Right Image</figcaption>
+        </figure>
+      </div>
+    <h3>Image Set 2: Doe Library from Evans Hall</h3>
+    <div class="image-container">
+        <figure>
+          <img src="imgs/doe_from_evans_left.png" alt="Campanile Left">
+          <figcaption>Left Image</figcaption>
+        </figure>
+        <figure>
+          <img src="imgs/doe_from_evans_right.png" alt="Campanile Middle">
+          <figcaption>Right Image</figcaption>
+        </figure>
+      </div>
+      <h3>Image Set 3: Haas Pavilion</h3>
+      <div class="image-container">
+          <figure>
+            <img src="imgs/haas_left.png" alt="Campanile Left">
+            <figcaption>Left Image</figcaption>
+          </figure>
+          <figure>
+            <img src="imgs/haas_right.png" alt="Campanile Middle">
+            <figcaption>Right Image</figcaption>
+          </figure>
+        </div>
+  </section>
+
+  <section>
+    <h2>Part A.2: Recovering Homographies</h2>
+    <p>
+      A homography is a 3x3 matrix that maps points from one plane to another. To compute it, we need at least 4 pairs of corresponding points between two images.
+      I used an online tool to manually select 9 corresponding points for each image pair in the Doe Library from Grimes set. These points allow us to set up an overdetermined linear system of equations
+      in the form <b>Ah=B</b>, which can be solved for the 8 unknown parameters of the homography matrix <b>H</b> using the method of least squares.
+    </p>
+    <h3>System of Equations</h3>
+    <p>For each of the 9 point correspondences (x, y) in the left image of Doe from Grimes and (u, v) in right image of Doe from Grimes, we can derive the following system of linear equations:</p>
+    <p>
+        \[
+        \begin{bmatrix}
+        x_1 & y_1 & 1 & 0 & 0 & 0 & -u_1x_1 & -u_1y_1 \\
+        0 & 0 & 0 & x_1 & y_1 & 1 & -v_1x_1 & -v_1y_1 \\[4pt]
+        x_2 & y_2 & 1 & 0 & 0 & 0 & -u_2x_2 & -u_2y_2 \\
+        0 & 0 & 0 & x_2 & y_2 & 1 & -v_2x_2 & -v_2y_2 \\[4pt]
+        x_3 & y_3 & 1 & 0 & 0 & 0 & -u_3x_3 & -u_3y_3 \\
+        0 & 0 & 0 & x_3 & y_3 & 1 & -v_3x_3 & -v_3y_3 \\[4pt]
+        x_4 & y_4 & 1 & 0 & 0 & 0 & -u_4x_4 & -u_4y_4 \\
+        0 & 0 & 0 & x_4 & y_4 & 1 & -v_4x_4 & -v_4y_4 \\[4pt]
+        x_5 & y_5 & 1 & 0 & 0 & 0 & -u_5x_5 & -u_5y_5 \\
+        0 & 0 & 0 & x_5 & y_5 & 1 & -v_5x_5 & -v_5y_5 \\[4pt]
+        x_6 & y_6 & 1 & 0 & 0 & 0 & -u_6x_6 & -u_6y_6 \\
+        0 & 0 & 0 & x_6 & y_6 & 1 & -v_6x_6 & -v_6y_6 \\[4pt]
+        x_7 & y_7 & 1 & 0 & 0 & 0 & -u_7x_7 & -u_7y_7 \\
+        0 & 0 & 0 & x_7 & y_7 & 1 & -v_7x_7 & -v_7y_7 \\[4pt]
+        x_8 & y_8 & 1 & 0 & 0 & 0 & -u_8x_8 & -u_8y_8 \\
+        0 & 0 & 0 & x_8 & y_8 & 1 & -v_8x_8 & -v_8y_8 \\[4pt]
+        x_9 & y_9 & 1 & 0 & 0 & 0 & -u_9x_9 & -u_9y_9 \\
+        0 & 0 & 0 & x_9 & y_9 & 1 & -v_9x_9 & -v_9y_9
+        \end{bmatrix}
+        \begin{bmatrix}
+        h_{11} \\ h_{12} \\ h_{13} \\ h_{21} \\ h_{22} \\ h_{23} \\ h_{31} \\ h_{32}
+        \end{bmatrix}
+        =
+        \begin{bmatrix}
+        u_1 \\ v_1 \\ u_2 \\ v_2 \\ u_3 \\ v_3 \\ u_4 \\ v_4 \\ u_5 \\ v_5 \\ 
+        u_6 \\ v_6 \\ u_7 \\ v_7 \\ u_8 \\ v_8 \\ u_9 \\ v_9
+        \end{bmatrix}
+        \]
+    </p>
+    <p>Stacking these for all n points gives us a 2n x 8 matrix A and a 2n x 1 vector B, which we can use to solve for H using the Least Squares Solution. 
+        We postpend a 1 to the resulting homography matrix to get a nice 3 x 3 matrix. We can generalize the equation for any number of correspondences above 4.</p>
+    <h3>Example: Point Correspondences & Resulting Homography</h3>
+    <div class="image-container">
+        <figure>
+            <img src="results/point_correspondances.png" alt="Point correspondences between two images">
+            <figcaption>Manually selected point correspondences for the Doe Library from Grimes images.</figcaption>
+        </figure>
+    </div>
+    <p>
+        Point Correspondances:
+        \[
+\begin{array}{c|cc|cc}
+\text{Index} & (x_i,~y_i)~\text{(image 1)} & & (u_i,~v_i)~\text{(image 2)} \\ \hline
+1 & (692,~317) & \rightarrow & (340,~326) \\
+2 & (813,~309) & \rightarrow & (452,~320) \\
+3 & (825,~327) & \rightarrow & (463,~337) \\
+4 & (532,~346) & \rightarrow & (162,~353) \\
+5 & (754,~347) & \rightarrow & (400,~355) \\
+6 & (445,~617) & \rightarrow & (57,~668) \\
+7 & (612,~575) & \rightarrow & (258,~592) \\
+8 & (931,~672) & \rightarrow & (552,~641) \\
+9 & (861,~350) & \rightarrow & (492,~357)
+\end{array}
+\]
+    </p>
+    <p>
+System of Linear Equations:
+\[
+\begin{bmatrix}
+692 & 317 & 1 & 0 & 0 & 0 & -340 \times 692 & -340 \times 317 \\
+0 & 0 & 0 & 692 & 317 & 1 & -326 \times 692 & -326 \times 317 \\[4pt]
+
+813 & 309 & 1 & 0 & 0 & 0 & -452 \times 813 & -452 \times 309 \\
+0 & 0 & 0 & 813 & 309 & 1 & -320 \times 813 & -320 \times 309 \\[4pt]
+
+825 & 327 & 1 & 0 & 0 & 0 & -463 \times 825 & -463 \times 327 \\
+0 & 0 & 0 & 825 & 327 & 1 & -337 \times 825 & -337 \times 327 \\[4pt]
+
+532 & 346 & 1 & 0 & 0 & 0 & -162 \times 532 & -162 \times 346 \\
+0 & 0 & 0 & 532 & 346 & 1 & -353 \times 532 & -353 \times 346 \\[4pt]
+
+754 & 347 & 1 & 0 & 0 & 0 & -400 \times 754 & -400 \times 347 \\
+0 & 0 & 0 & 754 & 347 & 1 & -355 \times 754 & -355 \times 347 \\[4pt]
+
+445 & 617 & 1 & 0 & 0 & 0 & -57 \times 445 & -57 \times 617 \\
+0 & 0 & 0 & 445 & 617 & 1 & -668 \times 445 & -668 \times 617 \\[4pt]
+
+612 & 575 & 1 & 0 & 0 & 0 & -258 \times 612 & -258 \times 575 \\
+0 & 0 & 0 & 612 & 575 & 1 & -592 \times 612 & -592 \times 575 \\[4pt]
+
+931 & 672 & 1 & 0 & 0 & 0 & -552 \times 931 & -552 \times 672 \\
+0 & 0 & 0 & 931 & 672 & 1 & -641 \times 931 & -641 \times 672 \\[4pt]
+
+861 & 350 & 1 & 0 & 0 & 0 & -492 \times 861 & -492 \times 350 \\
+0 & 0 & 0 & 861 & 350 & 1 & -357 \times 861 & -357 \times 350
+\end{bmatrix}
+\begin{bmatrix}
+h_{11} \\ h_{12} \\ h_{13} \\ h_{21} \\ h_{22} \\ h_{23} \\ h_{31} \\ h_{32}
+\end{bmatrix}
+=
+\begin{bmatrix}
+340 \\ 326 \\ 452 \\ 320 \\ 463 \\ 337 \\ 162 \\ 353 \\ 400 \\ 355 \\ 
+57 \\ 668 \\ 258 \\ 592 \\ 552 \\ 641 \\ 492 \\ 357
+\end{bmatrix}
+\]
+    </p>
+    <p>
+Recovered Homography Matrix H:
+\[
+H =
+\begin{bmatrix}
+1.98244939 & 0.02362675 & -816.059409 \\
+0.34172006 & 1.66635437 & -224.690645 \\
+0.00094988 & 0.00001429 & 1.00000000
+\end{bmatrix}
+\]
+
+    </p>
+  </section>
+  
+  <section>
+    <h2>Part A.3: Image Warping and Rectification</h2>
+    <p>
+        With the homography matrix, we can now warp images. The algorithm for warping images is as follows. First, we must determine the output dimensions of the resulting warp.
+        I acheived this by applying the homography transformation H onto the corners of the input image, finding the minimum and maximum x and y coordinates and subtracting the respective
+        minimum and maximums for the x and y axis to get the new side lengths. After instantiating a blank canvas, I iterate through each of the points in the canvas and fill them in 
+        with the interpolated color value of the corresponding point in the original image. We can easily find the corresponding point in the original image by computing
+        H<sup>-1</sup> and left matrix multiplying it with the vector containing the x and y positions (displaced by the respective minimum values) and an "extra" 1 in the output image.
+        This yields us the x and y position in the original image. We then interpolate the pixel value to fill in on the canvas, using either nearest neighbor or bilinear interpolation.
+    </p>
+    <p>
+        <b>Bilinear Interpolation:</b> Bilinear Interpolation works by using a weighted sum of the values of the closest four integer corners to the x and y coordinates on the original image
+        and returning that value as the pixel value. We can find these four corners by using combination of flooring and rounding up the x and y values. Assuming that we have the pixel position
+        on the original image, we can find its interpolated value by solving for \(f(x,y)\) (given that \(Q_{11}, Q_{21}, Q_{12}, Q_{22}\) represent the four corners and \(f\) is the function
+        that gives us the value at the pixel coordinate) (from Wikipedia)
+        \[
+        \begin{align*}
+        f(x,y_1) &= \frac{x_2-x}{x_2-x_1}f(Q_{11}) + \frac{x-x_1}{x_2-x_1}f(Q_{21}) \\
+        f(x,y_2) &= \frac{x_2-x}{x_2-x_1}f(Q_{12}) + \frac{x-x_1}{x_2-x_1}f(Q_{22}) \\
+        f(x,y) &= \frac{y_2-y}{y_2-y_1}f(x,y_1) + \frac{y-y_1}{y_2-y_1}f(x,y_2)
+        \end{align*}
+        \]
+    </p>
+    <p>
+        <b>Nearest Neighbor Interpolation:</b> Nearest Neighbor Interpolation works by simply interpolating the value of the pixel closest to the provided x and y coordinate (which we can easily find by
+        rounding both the given x and y coordinate to the nearest number and returning the pixel value of the image at that location).
+    </p>
+    <h3>Image Rectification</h3>
+    <p>
+        A great way to test the warping code is to perform image rectification. This involves taking a photo of a planar surface in perspective and warping it so that it appears front-on. 
+        I selected four points forming a quadrilateral on the source image and defined their corresponding points as the corners of a rectangle, with the goal to visualize the image as if it were
+        to be seen front on. Below are examples of this rectification, with the original, bilinear rectification, and nearest neighbor rectification provided as well. Observe that in the domino photo,
+        the oval divots in the domino in perspective revert to circles in the rectified "front-on" view and that the text on the playing cards box is no longer slanted, but rather straight (similar to 
+        how it would look if we looked at the box head on).
+    </p>
+    <div class="image-container">
+        <figure>
+            <img src="imgs/domino.png" alt="Original poster image">
+            <figcaption>Domino in Perspective</figcaption>
+        </figure>
+        <figure>
+            <img src="results/domino_bilinear.png" alt="Rectified poster image">
+            <figcaption>Rectified Domino using Bilinear Interpolation<br> Took 7.181 seconds</figcaption>
+        </figure>
+        <figure>
+            <img src="results/domino_nn.png" alt="Original textbook image">
+            <figcaption>Rectified Domino using Nearest Neighbor Interpolation<br> Took 5.255 seconds</figcaption>
+        </figure>
+    </div>
+    <div class="image-container">
+        <figure>
+            <img src="imgs/playing_card.png" alt="Original textbook image">
+            <figcaption>Playing Card Box</figcaption>
+        </figure>
+        <figure>
+            <img src="results/playing_card_bilinear.png" alt="Rectified textbook image">
+            <figcaption>Rectified Playing Card Box using Bilinear Interpolation<br> Took 6.217 seconds</figcaption>
+        </figure>
+        <figure>
+            <img src="results/playing_card_nn.png" alt="Original textbook image">
+            <figcaption>Rectified Playing Card Box using Nearest Neighbor Interpolation<br> Took 5.306 seconds</figcaption>
+        </figure>
+    </div>
+    <h3>Interpolation Comparison</h3>
+    <p>
+        Nearest neighbor interpolation is faster (which compounds as the images get bigger)
+        as it just rounds coordinates, but it can produce blocky, aliased results. While not apparent in the domino photo, we can see
+        clear signs of aliasing in the playing card box photo, where we can clearly see the aliasing of the letters on the box. Bilinear interpolation is slower as it computes 
+        a weighted average of four pixels, but it produces a much smoother and more visually appealing output. The difference is most noticeable on the playing card box with a lot 
+        of details, but less noticeable on the image of the domino photo where there are less details.
+    </p>
+</section>
+  <section>
+    <h2>Part A.4: Creating the Mosaic</h2>
+    <p>
+      The final step is to combine the warped images into a single mosaic. To get the final mosaic, we first choose points in both the first image and second image that correspond to the same objects.
+      These points will be chosen from the region of overlap between the two images. After that, we compute the homography matrix H mapping the points from the first image onto the points in the second image.
+      Then, we wish to find the size of the output image. Since we are working with two images, we find where the homography matrix transforms the corners of each image, find the minimum and maximum x and y coordinates
+      across all 8 corners and compute the new output dimensions by subtracting the respective minimum and maximum x and y coordinates. Additionally, we'll want to dispalce the first image such that only the region of intersection
+      overlap. We can do that by constructing the translation matrix T
+      \[
+        T = 
+        \begin{bmatrix}
+        1 & 0 & -\text{min}_x \\
+        0 & 1 & -\text{min}_y \\
+        0 & 0 & 1
+        \end{bmatrix}
+        \]
+      We will be using this translation matrix later on so that points are mapped onto the canvas instead of out-of-bounds. Since the images will overlap, we need to make sure that the region of overlap doesn't
+      "double-count" the overlapping pixel. I do this by constructing another image containing solely alpha values. This image will be a gradient image, with the center being white and tappering off in all dimensions,
+      getting darker the further away we go from the center.
+    </p>
+    <div class="image-container">
+        <figure>
+        </figure>
+        <figure>
+            <img src="results/alpha.png" alt="Source image 1 for Doe Library">
+            <figcaption>Alpha image we use for "blending"</figcaption>
+        </figure>
+        <figure>
+        </figure>
+    </div>
+    <p>
+        Finally, we construct the mosaic! We start by warping the first image using the homography matrix T @ H and warping the second image by T. We also warp the alpha image for photo 1 by T @ H and 
+        the alpha channel for image 2 by T. We do not have to introduce new logic here, we simply use the code to warp from the previous section with the output dimensions that we specified. For presentation purposes,
+        I chose to use bilinear interpolation, as it provided the most visually appealing results, despite the higher runtime. Finally, we construct the final image by multiplying each warped image by its respective alpha
+        image, and adding the two together. Finally, we normalize each pixel using the sum of the alpha values at that pixel as the denominator. After clipping pixel values to be between 0 and 255, we have our final mosaic
+        image as shown below!
+    </p>
+    <h3>Mosaic 1: Doe Library from Grimes Center</h3>
+    <div class="image-container">
+        <figure>
+            <img src="imgs/doe_left.png" alt="Source image 1 for Doe Library">
+            <figcaption>Doe from Grimes Left View</figcaption>
+        </figure>
+        <figure>
+            <img src="imgs/doe_right.png" alt="Source image 2 for Doe Library">
+            <figcaption>Doe from Grimes Right View</figcaption>
+        </figure>
+    </div>
+    <div class="single-image-container">
+        <figure>
+            <img src="results/doe_from_grimes_mosaic.png" alt="Final mosaic of Doe Library">
+            <figcaption>Doe Library from Grimes Center</figcaption>
+        </figure>
+    </div>
+
+    <h3>Mosaic 2: Doe Library from Evans Hall</h3>
+    <div class="image-container">
+        <figure>
+            <img src="imgs/doe_from_evans_left.png" alt="Source image 1 for Campanile">
+            <figcaption>Doe from Evans Hall Left View</figcaption>
+        </figure>
+        <figure>
+            <img src="imgs/doe_from_evans_right.png" alt="Source image 2 for Campanile">
+            <figcaption>Doe from Evans Hall Right View</figcaption>
+        </figure>
+    </div>
+    <div class="single-image-container">
+        <figure>
+            <img src="results/doe_from_evans2.png" alt="Final mosaic of Campanile">
+            <figcaption>Doe from Evans Hall</figcaption>
+        </figure>
+    </div>
+    
+    <h3>Mosaic 3: Haas Pavilion</h3>
+    <div class="image-container">
+        <figure>
+            <img src="imgs/haas_left.png" alt="Source image 1 for desk">
+            <figcaption>Haas Pavilion Left View</figcaption>
+        </figure>
+        <figure>
+            <img src="imgs/haas_right.png" alt="Source image 2 for desk">
+            <figcaption>Haas Pavilion Right View</figcaption>
+        </figure>
+    </div>
+    <div class="single-image-container">
+        <figure>
+            <img src="results/hass.png" alt="Final mosaic of an office desk">
+            <figcaption>Final Haas Pavilion Mosaic</figcaption>
+        </figure>
+    </div>
+
+  </section>
+
+</body>
+</html>
