@@ -518,5 +518,198 @@ H =
 
   </section>
 
+  <section>
+    <h2>Part B.1: Harris Corner Detection</h2>
+    <p>
+      We begin the automatic pipeline with Harris corner detection (single scale, no sub-pixel refinement). I used the provided
+      sample code to compute the corner response and then overlaid the detected corners on the image.
+      Next, I implemented Adaptive Non-Maximal Suppression (ANMS) to select a well-distributed subset of strong corners.
+    </p>
+    <h3>Detected Corners (No ANMS vs ANMS)</h3>
+    <div class="image-container">
+      <figure>
+        <img src="results/harris_corners.png" alt="Harris corners overlaid without ANMS">
+        <figcaption>No ANMS</figcaption>
+      </figure>
+      <figure>
+        <img src="results/anms_corners.png" alt="Harris corners overlaid with ANMS">
+        <figcaption>With ANMS</figcaption>
+      </figure>
+    </div>
+    <h3>How ANMS Is Implemented</h3>
+    <p>
+      Given the Harris response map <code>h</code> and detected corner coordinates <code>coords = (y_vals, x_vals)</code>, I compute an
+      Adaptive Non-Maximal Suppression radius for each corner and then keep the corners with the largest radii:
+    </p>
+    <ul>
+      <li><b>Inputs</b>: <code>h</code>, <code>coords</code>, desired count <code>num_interest_points</code> (e.g., 500), and a robustness factor <code>c_robust</code> (e.g., 0.9).</li>
+      <li><b>For each corner</b> <code>(x_i, y_i)</code>, read its response <code>f_i = h[y_i, x_i]</code>.</li>
+      <li><b>Find stronger neighbors</b>: build a boolean mask over all other corners selecting those with response <code>f_j</code> such that <code>f_i &lt; c_robust * f_j</code> (and excluding itself).</li>
+      <li><b>Suppression radius</b>: if any such stronger neighbors exist, compute the squared Euclidean distances from <code>(x_i, y_i)</code> to all of them using <code>dist2</code> and take the minimum as the radius <code>r_i</code>; if none exist, set <code>r_i = infty</code>.</li>
+      <li><b>Rank and select</b>: sort all corners by <code>r_i</code> in descending order and return the top <code>num_interest_points</code> points. Large radii indicate strong corners that are well-separated from other stronger corners.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Part B.2: Feature Descriptor Extraction</h2>
+    <p>
+      For each selected corner, I extracted an 8×8 descriptor sampled from a larger 40×40 window (blurred and downsampled)
+      to obtain smoother descriptors that are robust to small misalignments. I applied bias/gain normalization to each descriptor
+      (subtract mean and divide by standard deviation), omitting rotation invariance and wavelets.
+    </p>
+    <h3>How Feature Descriptors Are Extracted</h3>
+    <p>
+      For each corner coordinate, I extract a normalized 8×8 descriptor from a larger 40×40 window:
+    </p>
+    <ul>
+      <li><b>Boundary check</b>: skip corners within 20 pixels of image edges to ensure the 40×40 window fits.</li>
+      <li><b>Extract 40×40 patch</b>: centered on the corner to capture local image structure.</li>
+      <li><b>Gaussian blur</b>: smooth the patch to reduce noise and improve robustness.</li>
+      <li><b>Downsample to 8×8</b>: sample every 5th pixel to reduce 40×40 to 8×8, creating a compact descriptor.</li>
+      <li><b>Normalize</b>: subtract mean and divide by standard deviation for bias/gain invariance.</li>
+    </ul>
+    <h3>Sample Extracted Descriptors</h3>
+    <div class="single-image-container">
+      <figure>
+        <img src="results/doe_left_descriptors.png" alt="Several normalized 8x8 descriptors">
+        <figcaption>Several normalized 8×8 feature descriptors (visualized)</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Part B.3: Feature Matching</h2>
+    <p>
+      I matched descriptors across image pairs using Euclidean distances and selected a threshold following Figure 6b in the paper to keep only confident matches.
+    </p>
+    <h3>How Feature Matching Works</h3>
+    <p>
+      I match features between image pairs using a simple distance-based approach:
+    </p>
+    <ul>
+      <li><b>Extract descriptors</b>: compute normalized 8×8 descriptors for all corners in both images.</li>
+      <li><b>Flatten descriptors</b>: convert 2D descriptors to 1D vectors for distance computation.</li>
+      <li><b>Find nearest neighbors</b>: for each feature in image 1, find the closest feature in image 2 using Euclidean distance.</li>
+      <li><b>Apply threshold</b>: only keep matches where the distance is below a specified threshold to filter out poor matches.</li>
+      <li><b>Return correspondences</b>: output the coordinates and descriptors of all valid matches.</li>
+    </ul>
+    <h3>Matched Features Between Image Pairs</h3>
+    <div class="single-image-container">
+      <figure>
+        <img src="results/sample_correspondances.png" alt="Matched feature pairs visualized with lines">
+        <figcaption>Matched features visualized from the Doe from Grimes image set</figcaption>
+      </figure>
+    </div>
+    <div class="single-image-container">
+      <figure>
+        <img src="results/sample_correspondances2.png" alt="Matched feature pairs visualized with lines">
+        <figcaption>Matched features visualized from the Doe from Evans image set</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Part B.4: RANSAC for Robust Homography</h2>
+    <p>
+      Using 4-point RANSAC, I estimated a robust homography from the noisy tentative matches, then reused the mosaicing pipeline
+      from Part A to warp and blend images. Below are side-by-side comparisons of manual stitching (from Part A) and automatic stitching
+      using the Harris+ANMS+Descriptors+Matching+RANSAC pipeline. I include four mosaics below, with their ransac'd point correspondences below,
+      with one failure case (explained below).
+    </p>
+    <h3>How RANSAC Works</h3>
+    <p>
+      RANSAC (RANdom SAmple Consensus) robustly estimates the homography by iteratively testing different models:
+    </p>
+    <ul>
+      <li><b>Random sampling</b>: select 4 feature correspondences at random from the tentative matches.</li>
+      <li><b>Compute homography</b>: fit an exact homography H using the 4-point algorithm on the selected correspondences.</li>
+      <li><b>Count inliers</b>: project all points from image 1 using H and measure distances to corresponding points in image 2. Points with distance below threshold ε are considered inliers.</li>
+      <li><b>Keep best model</b>: track the homography with the largest number of inliers across all iterations.</li>
+      <li><b>Refit on inliers</b>: after the loop, recompute the homography using least squares on all inliers from the best model for improved accuracy.</li>
+    </ul>
+    <p>
+      This process is repeated for a maximum number of iterations, with the final robust homography being used for image warping and mosaic creation.
+    </p>
+
+    <h3>Mosaic 1: Doe Library from Grimes (Manual vs Automatic)</h3>
+    <div class="single-image-container">
+      <figure>
+        <img src="results/ransac_doe_from_grimes.png" alt="Correspondences after RANSAC">
+        <figcaption>Correspondences after RANSAC</figcaption>
+      </figure>
+    </div>
+    <div class="image-container">
+      <figure>
+        <img src="results/doe_from_grimes_mosaic.png" alt="Manual mosaic - building">
+        <figcaption>Manual mosaic</figcaption>
+      </figure>
+      <figure>
+        <img src="results/doe_auto_mosaic.png" alt="Automatic mosaic (RANSAC) - building">
+        <figcaption>Automatic Doe from Grimes mosaic</figcaption>
+      </figure>
+    </div>
+
+    <h3>Mosaic 2: Doe Library from Evans (Manual vs Automatic)</h3>
+    <div class="single-image-container">
+      <figure>
+        <img src="results/ransac_doe_evans.png" alt="Correspondences after RANSAC">
+        <figcaption>Correspondences after RANSAC</figcaption>
+      </figure>
+    </div>
+    <div class="image-container">
+      <figure>
+        <img src="results/doe_from_evans.png" alt="Manual mosaic - Doe from Evans">
+        <figcaption>Manual mosaic</figcaption>
+      </figure>
+      <figure>
+        <img src="results/doe_from_evans_auto_mosaic.png" alt="Automatic mosaic (RANSAC) - Doe from Evans">
+        <figcaption>Automatic Doe from Evans mosaic</figcaption>
+      </figure>
+    </div>
+
+    <h3>Failure Case: Haas Pavilion (Manual vs Automatic)</h3>
+    <div class="single-image-container">
+      <figure>
+        <img src="results/ransac_haas.png" alt="Correspondences after RANSAC">
+        <figcaption>Correspondences after RANSAC</figcaption>
+      </figure>
+    </div>
+    <div class="image-container">
+      <figure>
+        <img src="results/hass.png" alt="Manual mosaic">
+        <figcaption>Manual Haas Pavilion mosaic</figcaption>
+      </figure>
+      <figure>
+        <img src="results/haas_mosaic.png" alt="Automatic mosaic (RANSAC) - sample scene">
+        <figcaption>Automatic Haas Pavilion mosaic</figcaption>
+      </figure>
+    </div>
+
+    <h3>Additional Automatic Result: Hearst Mining Circle</h3>
+    <div class="image-container">
+      <figure>
+        <img src="results/evans_correspondances.png" alt="Manual mosaic - sample scene">
+        <figcaption>Matched features correspondences</figcaption>
+      </figure>
+      <figure>
+        <img src="results/evans_ransac.png" alt="Automatic mosaic (RANSAC) - sample scene">
+        <figcaption>Correspondences after RANSAC</figcaption>
+      </figure>
+    </div>
+    <div class="single-image-container">
+      <figure>
+        <img src="results/evans_auto_mosaic.png" alt="Automatic mosaic variant - fast numpy">
+        <figcaption>Automatic mosaic variant</figcaption>
+      </figure>
+    </div>
+    <h3>Automatic Mosaicing Reflection</h3>
+    <p>
+      Overall, the automatic mosaicing results were fairly good, demonstrating the effectiveness of the Harris corner detection, ANMS, feature matching, and RANSAC pipeline. However, certain parts of the mosaics were blurry because the point correspondences were heavily concentrated on one aspect of the photo rather than being evenly distributed. This occurred as a result of RANSAC discarding many correspondences that didn't fit the dominant homography model, leading to an uneven distribution of matching points across the image.
+    </p>
+    <p>
+      The automatic mosaic algorithm catastrophically failed on the Haas Pavilion photo because the feature matching aspect matched unrelated points to each other due to the uniformity of the picture itself. The Haas Pavilion images lacked distinctive features and had very few "interesting" points, making it difficult for the Harris corner detector to find reliable keypoints. As a result, the points that RANSAC chose were suboptimal, leading to a really bad final outcome with severe misalignment and distortion in the final mosaic.
+    </p>
+
+  </section>
 </body>
 </html>
