@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fun With Diffusion Models!</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- MathJax for rendering equations -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Fun With Diffusion Models!</h1>
+        <p>Project 5 - Deep Learning</p>
+    </header>
+
+    <div class="container">
+        
+        <!-- ==================== PART A ==================== -->
+        <section id="partA-intro">
+            <h2>Part A: The Power of Diffusion Models!</h2>
+            <p>
+                In Part A, we explore pretrained diffusion models and implement sampling loops to generate images. We use the DeepFloyd IF model to perform tasks such as denoising, inpainting, and creating optical illusions like visual anagrams and hybrid images.
+            </p>
+        </section>
+
+        <section id="part0">
+            <h2>Part 0: Setup</h2>
+            <h3>Using DeepFloyd</h3>
+            <p>
+                We use the <strong>DeepFloyd IF</strong> diffusion model from Stability AI. This is a two-stage text-to-image model: Stage I produces 64×64 images, and Stage II upscales them to 256×256. To use DeepFloyd, we first accept the license on Hugging Face and authenticate with an access token.
+            </p>
+            <p>
+                Since raw text strings cannot be directly used as model input, we convert text prompts into high-dimensional embeddings (4096 dimensions) using the provided Hugging Face clusters. These prompt embeddings are saved to a <code>.pth</code> file and loaded into the notebook.
+            </p>
+            <p>
+                The model also uses <strong>negative prompt embeddings</strong> (empty prompts) for Classifier-Free Guidance, which we'll explore later. We seed our random number generator for reproducibility.
+            </p>
+            
+            <h3>Text Prompts and Generated Images</h3>
+            <p>
+                We generated custom prompt embeddings and sampled images using the two-stage DeepFloyd pipeline. The <code>num_inference_steps</code> parameter controls how many denoising steps to take;lower is faster but reduces quality.
+            </p>
+            <p><strong>Random Seed Used:</strong> 100</p>
+            
+            <div class="grid-gallery grid-3">
+                <div class="figure">
+                    <img src="assets/generated_img_1.png" alt="An oil painting of a snowy mountain">
+                    <div class="caption">"a snowy mountain"</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/generated_img_2.png" alt="An oil painting of snowy houses">
+                    <div class="caption">"snowy houses"</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/generated_img_3.png" alt="A picture of piano keys">
+                    <div class="caption">"piano keys"</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="part1-sampling">
+            <h2>Part 1: Sampling Loops</h2>
+            
+            <h3>Diffusion Models Primer</h3>
+            <p>
+                Starting with a clean image \(x_0\), we can iteratively add noise to obtain progressively noisier versions \(x_t\), until we're left with pure noise at timestep \(t = T\). When \(t = 0\), we have a clean image, and for larger \(t\) more noise is in the image.
+            </p>
+            <p>
+                A diffusion model tries to reverse this process by denoising the image. By giving a diffusion model a noisy \(x_t\) and the timestep \(t\), the model predicts the noise in the image. With the predicted noise, we can either completely remove the noise to obtain an estimate of \(x_0\), or remove just a portion to obtain \(x_{t-1}\) with slightly less noise.
+            </p>
+            <p>
+                To generate images (sampling), we start with pure noise \(x_T\) sampled from a Gaussian distribution. We then predict and remove part of the noise, giving us \(x_{T-1}\). Repeating this process until we arrive at \(x_0\) gives us a clean image. For the DeepFloyd models, \(T = 1000\).
+            </p>
+
+            <h3>1.1 Implementing the Forward Process</h3>
+            <p>
+                The forward process adds noise to a clean image according to the equation: \(x_t = \sqrt{\bar{\alpha}_t} \cdot x_0 + \sqrt{1 - \bar{\alpha}_t} \cdot \epsilon\), where \(\epsilon \sim \mathcal{N}(0, I)\). The noise coefficients \(\bar{\alpha}_t\) are predefined by DeepFloyd, with \(\bar{\alpha}_t\) close to 1 for small t (less noise) and close to 0 for large t (more noise).
+            </p>
+            <p>
+                I implemented the <code>forward(im, t)</code> function using <code>torch.randn_like</code> to sample Gaussian noise, then applied the scaling formula. Below shows the Campanile at noise levels t = [250, 500, 750].
+            </p>
+            <div class="grid-gallery grid-4">
+                <div class="figure">
+                    <img src="assets/campanile_og.png" alt="Original Campanile">
+                    <div class="caption">Original</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/campanile_250.png" alt="Noisy Campanile at t=250">
+                    <div class="caption">t=250</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/campanile_500.png" alt="Noisy Campanile at t=500">
+                    <div class="caption">t=500</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/campanile_750.png" alt="Noisy Campanile at t=750">
+                    <div class="caption">t=750</div>
+                </div>
+            </div>
+
+            <h3>1.2 Classical Denoising</h3>
+            <p>
+                I attempted to denoise the noisy images using <code>torchvision.transforms.functional.gaussian_blur</code> with kernel_size=7. As expected, classical Gaussian blur filtering fails to recover meaningful structure;it merely smooths the noise without reconstructing the original content.
+            </p>
+            <div class="grid-gallery grid-3">
+                <div class="figure">
+                    <img src="assets/campanile_denoising_250.png" alt="Gaussian Blur Denoising at t=250">
+                    <div class="caption">t=250</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/campanile_denoising_500.png" alt="Gaussian Blur Denoising at t=500">
+                    <div class="caption">t=500</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/campanile_denoising_750.png" alt="Gaussian Blur Denoising at t=750">
+                    <div class="caption">t=750</div>
+                </div>
+            </div>
+
+            <h3>1.3 One-Step Denoising</h3>
+            <p>
+                Using the pretrained UNet (<code>stage_1.unet</code>), I estimate the noise in a single step. The UNet takes the noisy image, timestep t, and a text prompt embedding ("a high quality photo") as input, and outputs a noise estimate. I then recover \(x_0\) by rearranging the forward equation: \(x_0 = \frac{x_t - \sqrt{1 - \bar{\alpha}_t} \cdot \epsilon_{est}}{\sqrt{\bar{\alpha}_t}}\).
+            </p>
+            <p>
+                The UNet outputs a (1, 6, 64, 64) tensor;the first 3 channels are the noise estimate, and the last 3 are variance estimates (ignored here). Results are much better than Gaussian blur, but quality degrades at higher noise levels.
+            </p>
+            <div class="grid-gallery grid-3">
+                <div class="figure">
+                    <img src="assets/one_step_denoising_250.png" alt="One-Step Denoised at t=250">
+                    <div class="caption">t=250</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/one_step_denoising_500.png" alt="One-Step Denoised at t=500">
+                    <div class="caption">t=500</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/one_step_denoising_750.png" alt="One-Step Denoised at t=750">
+                    <div class="caption">t=750</div>
+                </div>
+            </div>
+
+            <h3>1.4 Iterative Denoising</h3>
+            <p>
+                Diffusion models are designed to denoise iteratively. I created <code>strided_timesteps</code> from 990 to 0 with stride=30, then implemented the DDPM sampling formula to go from \(x_t\) to \(x_{t'}\) (where \(t' < t\)):
+            </p>
+            <p>
+                \[x_{t'} = \frac{\sqrt{\bar{\alpha}_{t'}} \cdot \beta_t}{1 - \bar{\alpha}_t} \cdot x_0 + \frac{\sqrt{\alpha_t} \cdot (1 - \bar{\alpha}_{t'})}{1 - \bar{\alpha}_t} \cdot x_t + v_\sigma\]
+            </p>
+            <p>
+                The <code>add_variance</code> function handles the learned variance term. Starting from i_start=10, I iteratively denoise until reaching a clean image. The results are significantly better than one-step denoising or Gaussian blur.
+            </p>
+            <div class="grid-gallery grid-6">
+                <div class="figure">
+                    <img src="assets/iterative-denoise-1.png" alt="Iterative Denoise Step 1">
+                    <div class="caption">Step 1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/iterative-denoise-2.png" alt="Iterative Denoise Step 2">
+                    <div class="caption">Step 2</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/iterative-denoise-3.png" alt="Iterative Denoise Step 3">
+                    <div class="caption">Step 3</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/iterative-denoise-4.png" alt="Iterative Denoise Step 4">
+                    <div class="caption">Step 4</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/iterative-denoise-5.png" alt="Iterative Denoise Step 5">
+                    <div class="caption">Step 5</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/iterative-denoise-6.png" alt="Iterative Denoise Step 6">
+                    <div class="caption">Step 6</div>
+                </div>
+            </div>
+            <div class="grid-gallery grid-3">
+                <div class="figure">
+                    <img src="assets/iterative-denoise.png" alt="Iteratively Denoised Campanile">
+                    <div class="caption">Iterative Denoising</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/one-step-denoised.png" alt="One-Step Denoised Campanile">
+                    <div class="caption">One-Step Denoising</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/gaussian-blurred.png" alt="Gaussian Blurred Campanile">
+                    <div class="caption">Gaussian Blur</div>
+                </div>
+            </div>
+
+            <h3>1.5 Diffusion Model Sampling</h3>
+            <p>
+                To generate images from scratch, I start with pure Gaussian noise (<code>torch.randn</code>) and run <code>iterative_denoise</code> with i_start=0. This effectively denoises pure noise into a coherent image. Using the prompt "a high quality photo", the model generates reasonable but not spectacular images.
+            </p>
+            <div class="grid-gallery grid-5">
+                <div class="figure">
+                    <img src="assets/diffusion-model-sample1.png" alt="Sample 1">
+                    <div class="caption">Sample 1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/diffusion-model-sample2.png" alt="Sample 2">
+                    <div class="caption">Sample 2</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/diffusion-model-sample3.png" alt="Sample 3">
+                    <div class="caption">Sample 3</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/diffusion-model-sample4.png" alt="Sample 4">
+                    <div class="caption">Sample 4</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/diffusion-model-sample5.png" alt="Sample 5">
+                    <div class="caption">Sample 5</div>
+                </div>
+            </div>
+
+            <h3>1.6 Classifier-Free Guidance (CFG)</h3>
+            <p>
+                To dramatically improve image quality, I implemented Classifier-Free Guidance. CFG computes both a conditional noise estimate \(\epsilon_c\) and an unconditional noise estimate \(\epsilon_u\), then combines them: \[\epsilon = \epsilon_u + \gamma(\epsilon_c - \epsilon_u)\]
+            </p>
+            <p>
+                With γ=7, the model produces much higher quality images. The unconditional estimate uses an empty prompt embedding (""). I implemented <code>iterative_denoise_cfg</code> which runs the UNet twice per step;once for each prompt.
+            </p>
+            <div class="grid-gallery grid-5">
+                <div class="figure">
+                    <img src="assets/cfg-generated-image-1.png" alt="Sample 1 with CFG">
+                    <div class="caption">Sample 1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/cfg-generated-image-2.png" alt="Sample 2 with CFG">
+                    <div class="caption">Sample 2</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/cfg-generated-image-3.png" alt="Sample 3 with CFG">
+                    <div class="caption">Sample 3</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/cfg-generated-image-4.png" alt="Sample 4 with CFG">
+                    <div class="caption">Sample 4</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/cfg-generated-image-5.png" alt="Sample 5 with CFG">
+                    <div class="caption">Sample 5</div>
+                </div>
+            </div>
+
+            <h3>1.7 Image-to-image Translation</h3>
+            <p>
+                Following the <strong>SDEdit</strong> algorithm, I add noise to a real image and then denoise it using <code>iterative_denoise_cfg</code>. This "projects" the image onto the natural image manifold, creating edits. The starting index i_start controls edit strength: lower values (more noise) produce more dramatic changes, while higher values preserve more of the original.
+            </p>
+            <p>
+                I tested on the Campanile, Hoover Tower (Stanford), and Royce Hall (UCLA) at noise levels [1, 3, 5, 7, 10, 20]. As i_start increases, the output increasingly resembles the original image.
+            </p>
+            <div class="figure" style="max-width: 200px; margin: 1rem auto;">
+                <img src="assets/campanile_og.png" alt="Original Campanile">
+                <div class="caption">Original Campanile</div>
+            </div>
+            <div class="grid-gallery grid-6">
+                <div class="figure">
+                    <img src="assets/sde-edit-campanile-1.png" alt="SDEdit i_start=1">
+                    <div class="caption">i_start=1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-campanile-2.png" alt="SDEdit i_start=3">
+                    <div class="caption">i_start=3</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-campanile-3.png" alt="SDEdit i_start=5">
+                    <div class="caption">i_start=5</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-campanile-4.png" alt="SDEdit i_start=7">
+                    <div class="caption">i_start=7</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-campanile-5.png" alt="SDEdit i_start=10">
+                    <div class="caption">i_start=10</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-campanile-6.png" alt="SDEdit i_start=20">
+                    <div class="caption">i_start=20</div>
+                </div>
+            </div>
+            <p><strong>SDEdit on Hoover Tower (Stanford):</strong></p>
+            <div class="figure" style="max-width: 200px; margin: 1rem auto;">
+                <img src="assets/hoover.jpg" alt="Original Hoover Tower">
+                <div class="caption">Original Hoover Tower</div>
+            </div>
+            <div class="grid-gallery grid-6">
+                <div class="figure">
+                    <img src="assets/sde-edit-hoover-1.png" alt="SDEdit Hoover i_start=1">
+                    <div class="caption">i_start=1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-hoover-2.png" alt="SDEdit Hoover i_start=3">
+                    <div class="caption">i_start=3</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-hoover-3.png" alt="SDEdit Hoover i_start=5">
+                    <div class="caption">i_start=5</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-hoover-4.png" alt="SDEdit Hoover i_start=7">
+                    <div class="caption">i_start=7</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-hoover-5.png" alt="SDEdit Hoover i_start=10">
+                    <div class="caption">i_start=10</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-hoover-6.png" alt="SDEdit Hoover i_start=20">
+                    <div class="caption">i_start=20</div>
+                </div>
+            </div>
+            <p><strong>SDEdit on Royce Hall (UCLA):</strong></p>
+            <div class="figure" style="max-width: 200px; margin: 1rem auto;">
+                <img src="assets/royce.jpg" alt="Original Royce Hall">
+                <div class="caption">Original Royce Hall</div>
+            </div>
+            <div class="grid-gallery grid-6">
+                <div class="figure">
+                    <img src="assets/sde-edit-royce-1.png" alt="SDEdit Royce i_start=1">
+                    <div class="caption">i_start=1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-royce-2.png" alt="SDEdit Royce i_start=3">
+                    <div class="caption">i_start=3</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-royce-3.png" alt="SDEdit Royce i_start=5">
+                    <div class="caption">i_start=5</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-royce-4.png" alt="SDEdit Royce i_start=7">
+                    <div class="caption">i_start=7</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-royce-5.png" alt="SDEdit Royce i_start=10">
+                    <div class="caption">i_start=10</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-royce-6.png" alt="SDEdit Royce i_start=20">
+                    <div class="caption">i_start=20</div>
+                </div>
+            </div>
+
+            <h3>1.7.1 Editing Hand-Drawn and Web Images</h3>
+            <p>
+                SDEdit works particularly well on non-realistic images like sketches or paintings. I downloaded a web image and used the drawing interface to create hand-drawn images, then projected them onto the natural image manifold using the same procedure. The model "hallucinates" realistic details while preserving the overall structure.
+            </p>
+            <p><strong>Web Image Edits:</strong></p>
+            <div class="figure" style="max-width: 200px; margin: 1rem auto;">
+                <img src="assets/web-image.png" alt="Original Web Image">
+                <div class="caption">Original</div>
+            </div>
+            <div class="grid-gallery grid-6">
+                <div class="figure">
+                    <img src="assets/sde-edit-web-image-1.png" alt="Web Image i_start=1">
+                    <div class="caption">i_start=1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-web-image-2.png" alt="Web Image i_start=3">
+                    <div class="caption">i_start=3</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-web-image-3.png" alt="Web Image i_start=5">
+                    <div class="caption">i_start=5</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-web-image-4.png" alt="Web Image i_start=7">
+                    <div class="caption">i_start=7</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-web-image-5.png" alt="Web Image i_start=10">
+                    <div class="caption">i_start=10</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-web-image-6.png" alt="Web Image i_start=20">
+                    <div class="caption">i_start=20</div>
+                </div>
+            </div>
+            <p><strong>Hand-drawn Image 1 Edits:</strong></p>
+            <div class="figure" style="max-width: 200px; margin: 1rem auto;">
+                <img src="assets/handdrawn1.png" alt="Original Hand-drawn Image 1">
+                <div class="caption">Original</div>
+            </div>
+            <div class="grid-gallery grid-6">
+                <div class="figure">
+                    <img src="assets/sde-edit-handdrawn1-1.png" alt="Handdrawn 1 i_start=1">
+                    <div class="caption">i_start=1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-handdrawn1-2.png" alt="Handdrawn 1 i_start=3">
+                    <div class="caption">i_start=3</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-handdrawn1-3.png" alt="Handdrawn 1 i_start=5">
+                    <div class="caption">i_start=5</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-handdrawn1-4.png" alt="Handdrawn 1 i_start=7">
+                    <div class="caption">i_start=7</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-handdrawn1-5.png" alt="Handdrawn 1 i_start=10">
+                    <div class="caption">i_start=10</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-handdrawn1-6.png" alt="Handdrawn 1 i_start=20">
+                    <div class="caption">i_start=20</div>
+                </div>
+            </div>
+
+            <p><strong>Hand-drawn Image 2 Edits:</strong></p>
+            <div class="figure" style="max-width: 200px; margin: 1rem auto;">
+                <img src="assets/handdrawn2.png" alt="Original Hand-drawn Image 2">
+                <div class="caption">Original</div>
+            </div>
+            <div class="grid-gallery grid-6">
+                <div class="figure">
+                    <img src="assets/sde-edit-handdrawn2-1.png" alt="Handdrawn 2 i_start=1">
+                    <div class="caption">i_start=1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-handdrawn2-2.png" alt="Handdrawn 2 i_start=3">
+                    <div class="caption">i_start=3</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-handdrawn2-3.png" alt="Handdrawn 2 i_start=5">
+                    <div class="caption">i_start=5</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-handdrawn2-4.png" alt="Handdrawn 2 i_start=7">
+                    <div class="caption">i_start=7</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-handdrawn2-5.png" alt="Handdrawn 2 i_start=10">
+                    <div class="caption">i_start=10</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/sde-edit-handdrawn2-6.png" alt="Handdrawn 2 i_start=20">
+                    <div class="caption">i_start=20</div>
+                </div>
+            </div>
+
+            <h3>1.7.2 Inpainting</h3>
+            <p>
+                Following the <strong>RePaint</strong> paper, I implemented inpainting. Given an image \(x_{orig}\) and a binary mask \(\mathbf{m}\), I generate new content inside the masked region while preserving the rest. At each denoising step, I force the unmasked pixels to match the original image (with appropriate noise): \[x_t \leftarrow \mathbf{m} \cdot x_t + (1 - \mathbf{m}) \cdot \text{forward}(x_{orig}, t)\]
+            </p>
+            <p>
+                I created custom masks for the Campanile (top of tower), Hoover Tower (entire tower), and Royce Hall (two tower sections). The model generates plausible content to fill the masked regions.
+            </p>
+            <p><strong>Campanile Inpainting:</strong></p>
+            <div class="grid-gallery grid-4">
+                <div class="figure">
+                    <img src="assets/campanile_og.png" alt="Original Campanile">
+                    <div class="caption">Original</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/campenile-mask.png" alt="Campanile Mask">
+                    <div class="caption">Mask</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/campanile-to-replace.png" alt="Campanile Hole to Fill">
+                    <div class="caption">Hole to Fill</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/campanile-inpainted.png" alt="Campanile Inpainted">
+                    <div class="caption">Inpainted</div>
+                </div>
+            </div>
+            <p><strong>Hoover Tower Inpainting:</strong></p>
+            <div class="grid-gallery grid-4">
+                <div class="figure">
+                    <img src="assets/hoover.jpg" alt="Original Hoover">
+                    <div class="caption">Original</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/hoover-mask.png" alt="Hoover Mask">
+                    <div class="caption">Mask</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/hoover-to-replace.png" alt="Hoover Hole to Fill">
+                    <div class="caption">Hole to Fill</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/hoover-inpainted.png" alt="Hoover Inpainted">
+                    <div class="caption">Inpainted</div>
+                </div>
+            </div>
+            <p><strong>Royce Hall Inpainting:</strong></p>
+            <div class="grid-gallery grid-4">
+                <div class="figure">
+                    <img src="assets/royce.jpg" alt="Original Royce">
+                    <div class="caption">Original</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/royce-mask.png" alt="Royce Mask">
+                    <div class="caption">Mask</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/royce-to-replace.png" alt="Royce Hole to Fill">
+                    <div class="caption">Hole to Fill</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/royce-inpainted.png" alt="Royce Inpainted">
+                    <div class="caption">Inpainted</div>
+                </div>
+            </div>
+
+            <h3>1.7.3 Text-Conditional Image-to-image Translation</h3>
+            <p>
+                Instead of using a generic "a high quality photo" prompt, I guide the SDEdit projection with specific text prompts for more controlled edits. This combines the structure of the original image with the semantic content of the text prompt. I used "a picture of a rocket ship" for the Campanile, "an oil painting of snowy houses" for Royce Hall, and "a picture of wooden lightpole" for Hoover Tower.
+            </p>
+            <p><strong>Text-guided Campanile Edits</strong> (prompt: "a rocket ship"):</p>
+            <div class="grid-gallery grid-6">
+                <div class="figure">
+                    <img src="assets/campanile-text-guided-1.png" alt="Text-guided i_start=1">
+                    <div class="caption">i_start=1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/campanile-text-guided-2.png" alt="Text-guided i_start=3">
+                    <div class="caption">i_start=3</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/campanile-text-guided-3.png" alt="Text-guided i_start=5">
+                    <div class="caption">i_start=5</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/campanile-text-guided-4.png" alt="Text-guided i_start=7">
+                    <div class="caption">i_start=7</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/campanile-text-guided-5.png" alt="Text-guided i_start=10">
+                    <div class="caption">i_start=10</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/campanile-text-guided-6.png" alt="Text-guided i_start=20">
+                    <div class="caption">i_start=20</div>
+                </div>
+            </div>
+            <p><strong>Text-guided Royce Hall Edits</strong> (prompt: "an oil painting of snowy houses"):</p>
+            <div class="grid-gallery grid-5">
+                <div class="figure">
+                    <img src="assets/royce-text-edited-1.png" alt="Royce Text-guided i_start=1">
+                    <div class="caption">i_start=1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/royce-text-edited-2.png" alt="Royce Text-guided i_start=3">
+                    <div class="caption">i_start=3</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/royce-text-edited-3.png" alt="Royce Text-guided i_start=5">
+                    <div class="caption">i_start=5</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/royce-text-edited-4.png" alt="Royce Text-guided i_start=7">
+                    <div class="caption">i_start=7</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/royce-text-edited-5.png" alt="Royce Text-guided i_start=10">
+                    <div class="caption">i_start=10</div>
+                </div>
+            </div>
+            <p><strong>Text-guided Hoover Tower Edits</strong> (prompt: "a picture of wooden lightpole"):</p>
+            <div class="grid-gallery grid-6">
+                <div class="figure">
+                    <img src="assets/hoover-text-edited-1.png" alt="Hoover Text-guided i_start=1">
+                    <div class="caption">i_start=1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/hoover-text-edited-2.png" alt="Hoover Text-guided i_start=3">
+                    <div class="caption">i_start=3</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/hoover-text-edited-3.png" alt="Hoover Text-guided i_start=5">
+                    <div class="caption">i_start=5</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/hoover-text-edited-4.png" alt="Hoover Text-guided i_start=7">
+                    <div class="caption">i_start=7</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/hoover-text-edited-5.png" alt="Hoover Text-guided i_start=10">
+                    <div class="caption">i_start=10</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/hoover-text-edited-6.png" alt="Hoover Text-guided i_start=20">
+                    <div class="caption">i_start=20</div>
+                </div>
+            </div>
+
+            <h3>1.8 Visual Anagrams</h3>
+            <p>
+                I implemented the <code>make_flip_illusion</code> function to create optical illusions that look like one thing right-side up but reveal something else when flipped. The algorithm computes two noise estimates: \(\epsilon_1\) from the normal image with prompt \(p_1\), and \(\epsilon_2\) from the flipped image with prompt \(p_2\) (then flipped back). The final noise estimate is the average: \[\epsilon = \frac{\epsilon_1 + \epsilon_2}{2}\]
+            </p>
+            <p><strong>Visual Anagram 1:</strong> "a painting of a truck" ↔ "a painting of a deer"</p>
+            <div class="grid-gallery grid-2">
+                <div class="figure">
+                    <img src="assets/truck.png" alt="Visual Anagram - Truck">
+                    <div class="caption">"a painting of a truck"</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/deer.png" alt="Visual Anagram - Deer (flipped)">
+                    <div class="caption">"a painting of a deer" (flipped)</div>
+                </div>
+            </div>
+            <p><strong>Visual Anagram 2:</strong> "an oil painting of a ship" ↔ "an oil painting of a bird"</p>
+            <div class="grid-gallery grid-2">
+                <div class="figure">
+                    <img src="assets/ship.png" alt="Visual Anagram - Ship">
+                    <div class="caption">"an oil painting of a ship"</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/bird.png" alt="Visual Anagram - Bird (flipped)">
+                    <div class="caption">"an oil painting of a bird" (flipped)</div>
+                </div>
+            </div>
+
+            <h3>1.9 Hybrid Images</h3>
+            <p>
+                Using <strong>Factorized Diffusion</strong>, I created hybrid images that look different up close vs. far away. I compute two noise estimates with different prompts, then combine them: \[\epsilon = f_{\text{lowpass}}(\epsilon_1) + f_{\text{highpass}}(\epsilon_2)\] The lowpass filter uses Gaussian blur (kernel_size=33, sigma=2), and highpass is the residual. The first prompt contributes low frequencies (visible from afar), while the second contributes high frequencies (visible up close).
+            </p>
+            <div class="grid-gallery grid-3">
+                <div class="figure">
+                    <img src="assets/eagle-waves-hybrid.png" alt="Eagle and Waves Hybrid">
+                    <div class="caption">"a picture of an eagle" + "a picture of waves crashing on rocks"</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/panda-mountain-hybrid.png" alt="Panda and Mountain Hybrid">
+                    <div class="caption">"a picture of a panda" + "a picture of a mountain"</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/waterfall-skull-hybrid.png" alt="Skull and Waterfall Hybrid">
+                    <div class="caption">"a picture of a skull" + "a picture of a waterfall"</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== PART B ==================== -->
+        <section id="partB-intro">
+            <h2>Part B: Training Diffusion Models from Scratch</h2>
+            <p>
+                In Part B, we train our own diffusion models on MNIST. We start with a single-step denoising UNet, observe its limitations, and then implement Flow Matching with time and class conditioning to generate high-quality digits from pure noise.
+            </p>
+        </section>
+
+        <section id="partB-1">
+            <h2>Part 1: Training a Single-Step Denoising UNet</h2>
+            
+            <h3>1.1 The UNet Architecture</h3>
+            <p>
+                I implemented a UNet architecture from scratch following the encoder-decoder pattern with skip connections. The architecture processes 28×28 MNIST images and outputs denoised images of the same size.
+            </p>
+            
+            <p><strong>Atomic Operations:</strong></p>
+            <ul>
+                <li><strong>Conv</strong>: A standard convolutional block consisting of Conv2d(in, out, kernel=3, stride=1, padding=1) → BatchNorm2d(out) → GELU(). This preserves spatial dimensions while transforming channel depth.</li>
+                <li><strong>DownConv</strong>: Downsampling block with Conv2d(in, out, kernel=3, stride=2, padding=1) → BatchNorm2d(out) → GELU(). The stride=2 reduces spatial dimensions by half (28→14→7).</li>
+                <li><strong>UpConv</strong>: Upsampling block using ConvTranspose2d(in, out, kernel=4, stride=2, padding=1) → BatchNorm2d(out) → GELU(). The transposed convolution doubles spatial dimensions (7→14→28).</li>
+                <li><strong>Flatten</strong>: Bottleneck compression using AvgPool2d(kernel=7) → GELU(). This reduces 7×7 feature maps to 1×1, creating a global feature vector.</li>
+                <li><strong>Unflatten</strong>: Bottleneck expansion using ConvTranspose2d(in, in, kernel=7, stride=7) → BatchNorm2d(in) → GELU(). This expands 1×1 back to 7×7.</li>
+            </ul>
+            
+            <p><strong>Composed Blocks:</strong></p>
+            <ul>
+                <li><strong>ConvBlock(in, out)</strong>: Two sequential Conv operations: Conv(in, out) → Conv(out, out). This allows the network to learn more complex features at each resolution level.</li>
+                <li><strong>DownBlock(in, out)</strong>: DownConv(in, out) → ConvBlock(out, out). Combines downsampling with feature extraction.</li>
+                <li><strong>UpBlock(in, out)</strong>: UpConv(in, out) → ConvBlock(out, out). Combines upsampling with feature refinement.</li>
+            </ul>
+            
+            <p><strong>Full UNet Architecture (UnconditionalUNet):</strong></p>
+            <p>
+                The network follows an encoder-bottleneck-decoder structure with skip connections. Given input \(x\) with shape (N, 1, 28, 28):
+            </p>
+            <ol>
+                <li><strong>Encoder Path:</strong>
+                    <ul>
+                        <li>\(a\) = ConvBlock(1 → D): Initial feature extraction, output shape (N, D, 28, 28)</li>
+                        <li>\(b\) = DownBlock(D → D): First downsampling, output shape (N, D, 14, 14)</li>
+                        <li>\(c\) = DownBlock(D → 2D): Second downsampling, output shape (N, 2D, 7, 7)</li>
+                    </ul>
+                </li>
+                <li><strong>Bottleneck:</strong>
+                    <ul>
+                        <li>\(d\) = Flatten(c): Compress to (N, 2D, 1, 1)</li>
+                        <li>\(d\) = Unflatten(d): Expand back to (N, 2D, 7, 7)</li>
+                    </ul>
+                </li>
+                <li><strong>Decoder Path with Skip Connections:</strong>
+                    <ul>
+                        <li>\(f\) = UpBlock(concat[c, d]): Input (N, 4D, 7, 7) → output (N, 2D, 14, 14)</li>
+                        <li>\(g\) = UpBlock(concat[b, f]): Input (N, 3D, 14, 14) → output (N, D, 28, 28)</li>
+                        <li>\(h\) = ConvBlock(concat[a, g]): Input (N, 2D, 28, 28) → output (N, D, 28, 28)</li>
+                        <li>output = Conv2d(D → 1): Final 3×3 conv to produce single-channel output</li>
+                    </ul>
+                </li>
+            </ol>
+            <p>
+                Where D = num_hiddens (I used D=128). The skip connections (concatenating encoder features with decoder features) help preserve fine-grained spatial information that would otherwise be lost during downsampling.
+            </p>
+            <div class="figure">
+                <img src="assets/unconditional_arch.png" alt="Unconditional UNet Architecture">
+                <div class="caption">Figure 0.1: Unconditional UNet Architecture.</div>
+            </div>
+            <div class="figure">
+                <img src="assets/atomic_ops_new.png" alt="Standard UNet Operations">
+                <div class="caption">Figure 0.2: Standard UNet Operations.</div>
+            </div>
+
+            <h3>1.2 The Noising Process</h3>
+            <p>
+                To train a denoiser, we need pairs of (noisy image, clean image). The noising process corrupts clean images by adding Gaussian noise:
+            </p>
+            <p>
+                \[x_{noisy} = x_{clean} + \sigma \cdot \epsilon, \quad \text{where } \epsilon \sim \mathcal{N}(0, I)\]
+            </p>
+            <p>
+                The noise level σ controls corruption intensity. At σ=0, the image is unchanged. As σ increases, the signal-to-noise ratio decreases until the original content becomes unrecognizable. I visualized this process on several MNIST digits using σ ∈ [0.0, 0.2, 0.4, 0.5, 0.6, 0.8, 1.0]. The visualization shows how digit structure progressively degrades;at σ=0.5 (our training noise level), the digit is still somewhat recognizable but significantly corrupted.
+            </p>
+            <div class="figure">
+                <img src="assets/noising_process.png" alt="Noising Process Visualization 1">
+                <div class="caption">Figure 1.1: Noising process visualization (Set 1).</div>
+            </div>
+            <div class="figure">
+                <img src="assets/noising_process_2.png" alt="Noising Process Visualization 2">
+                <div class="caption">Figure 1.2: Noising process visualization (Set 2).</div>
+            </div>
+            <div class="figure">
+                <img src="assets/noising_process_3.png" alt="Noising Process Visualization 3">
+                <div class="caption">Figure 1.3: Noising process visualization (Set 3).</div>
+            </div>
+
+            <h3>1.2.1 Training the Denoiser</h3>
+            <p>
+                The denoiser is trained to recover clean images from noisy inputs. The objective is to minimize the Mean Squared Error (MSE) between the network's output and the original clean image:
+            </p>
+            <p>
+                \[\mathcal{L} = \mathbb{E}_{x \sim p_{data}, \epsilon \sim \mathcal{N}(0,I)} \left[ \|\text{UNet}(x + \sigma \cdot \epsilon) - x\|^2 \right]\]
+            </p>
+            
+            <p><strong>Training Procedure:</strong></p>
+            <ol>
+                <li>Load a batch of clean MNIST images \(x\) from the DataLoader</li>
+                <li>Sample random Gaussian noise \(\epsilon \sim \mathcal{N}(0, I)\) with the same shape as \(x\)</li>
+                <li>Create noisy images: \(x_{noisy} = x + \sigma \cdot \epsilon\)</li>
+                <li>Forward pass: \(\hat{x} = \text{UNet}(x_{noisy})\)</li>
+                <li>Compute loss: \(\mathcal{L} = \text{MSE}(\hat{x}, x)\)</li>
+                <li>Backpropagate and update weights with Adam optimizer</li>
+            </ol>
+            
+            <p><strong>Hyperparameters:</strong></p>
+            <ul>
+                <li><strong>batch_size</strong> = 256: Large batches for stable gradient estimates</li>
+                <li><strong>learning_rate</strong> = 1e-4: Conservative learning rate for stable convergence</li>
+                <li><strong>hidden_dim (D)</strong> = 128: Number of channels in the first layer</li>
+                <li><strong>σ</strong> = 0.5: Fixed noise level during training</li>
+                <li><strong>epochs</strong> = 5: Number of passes through the full dataset</li>
+                <li><strong>optimizer</strong> = Adam: Adaptive learning rate optimizer</li>
+            </ul>
+            
+            <p>
+                I saved model checkpoints after each epoch to track training progress and compare early vs. late training results.
+            </p>
+            <div class="figure">
+                <img src="assets/unet_training_loss_curve.png" alt="Training Loss Curve">
+                <div class="caption">Figure 2: Training loss curve for the single-step denoiser.</div>
+            </div>
+            
+            <p>Results on the test set (noise level σ=0.5) after training:</p>
+            <div class="grid-gallery grid-3">
+                <div class="figure">
+                    <img src="assets/in-distribution-testing-epoch1-1.png" alt="In-Distribution Epoch 1 Set 1">
+                    <div class="caption">Epoch 1 - Set 1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/in-distribution-testing-epoch1-2.png" alt="In-Distribution Epoch 1 Set 2">
+                    <div class="caption">Epoch 1 - Set 2</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/in-distribution-testing-epoch1-3.png" alt="In-Distribution Epoch 1 Set 3">
+                    <div class="caption">Epoch 1 - Set 3</div>
+                </div>
+            </div>
+            <div class="grid-gallery grid-3">
+                <div class="figure">
+                    <img src="assets/in-distribution-testing-epoch5-1.png" alt="In-Distribution Epoch 5 Set 1">
+                    <div class="caption">Epoch 5 - Set 1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/in-distribution-testing-epoch5-2.png" alt="In-Distribution Epoch 5 Set 2">
+                    <div class="caption">Epoch 5 - Set 2</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/in-distribution-testing-epoch5-3.png" alt="In-Distribution Epoch 5 Set 3">
+                    <div class="caption">Epoch 5 - Set 3</div>
+                </div>
+            </div>
+
+            <h3>1.2.2 Out-of-Distribution Testing</h3>
+            <p>
+                A critical question is: how well does the denoiser generalize to noise levels it wasn't trained on? Since training used only σ=0.5, I evaluated the model on a range of noise levels σ ∈ [0.0, 0.2, 0.4, 0.5, 0.6, 0.8, 1.0] to test out-of-distribution (OOD) performance.
+            </p>
+            
+            <p><strong>Evaluation Procedure:</strong></p>
+            <ol>
+                <li>Load saved model checkpoints from Epoch 1 and Epoch 5</li>
+                <li>For each test image and each σ value:
+                    <ul>
+                        <li>Add noise: \(x_{noisy} = x + \sigma \cdot \epsilon\)</li>
+                        <li>Denoise: \(\hat{x} = \text{UNet}(x_{noisy})\)</li>
+                        <li>Display triplet: [Original | Noisy | Denoised]</li>
+                    </ul>
+                </li>
+            </ol>
+            
+            <p><strong>Observations:</strong></p>
+            <ul>
+                <li><strong>σ = 0.0 (no noise)</strong>: The model slightly blurs the input since it expects noise that isn't there</li>
+                <li><strong>σ = 0.2, 0.4</strong>: Good denoising but some over-smoothing since the model expects more noise</li>
+                <li><strong>σ = 0.5</strong>: Best performance;this matches the training distribution</li>
+                <li><strong>σ = 0.6, 0.8</strong>: Degraded performance;more noise than expected leads to incomplete denoising</li>
+                <li><strong>σ = 1.0</strong>: Poor results;the noise overwhelms the signal and the model struggles to recover structure</li>
+            </ul>
+            <p>
+                Comparing Epoch 1 vs Epoch 5 shows that longer training improves denoising quality, especially at the training noise level. However, OOD generalization remains limited;the model is specialized for σ=0.5.
+            </p>
+            <p>Comparing Epoch 1 vs Epoch 5 for different noise levels:</p>
+
+            <div class="grid-gallery">
+                <div class="figure">
+                    <img src="assets/ood-testing-epoch1.png" alt="OOD Set 1 Epoch 1">
+                    <div class="caption">Set 1: Epoch 1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/ood-testing-epoch5.png" alt="OOD Set 1 Epoch 5">
+                    <div class="caption">Set 1: Epoch 5</div>
+                </div>
+            </div>
+
+            <div class="grid-gallery">
+                <div class="figure">
+                    <img src="assets/ood-testing-epoch1_2.png" alt="OOD Set 2 Epoch 1">
+                    <div class="caption">Set 2: Epoch 1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/ood-testing-epoch5_2.png" alt="OOD Set 2 Epoch 5">
+                    <div class="caption">Set 2: Epoch 5</div>
+                </div>
+            </div>
+
+            <div class="grid-gallery">
+                <div class="figure">
+                    <img src="assets/ood-testing-epoch1_3.png" alt="OOD Set 3 Epoch 1">
+                    <div class="caption">Set 3: Epoch 1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/ood-testing-epoch5_3.png" alt="OOD Set 3 Epoch 5">
+                    <div class="caption">Set 3: Epoch 5</div>
+                </div>
+            </div>
+
+            <div class="grid-gallery">
+                <div class="figure">
+                    <img src="assets/ood-testing-epoch1_4.png" alt="OOD Set 4 Epoch 1">
+                    <div class="caption">Set 4: Epoch 1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/ood-testing-epoch5_4.png" alt="OOD Set 4 Epoch 5">
+                    <div class="caption">Set 4: Epoch 5</div>
+                </div>
+            </div>
+            <div class="caption" style="text-align: center;">Figure 3: Side-by-side comparison of OOD denoising results at Epoch 1 vs Epoch 5.</div>
+
+            <h3>1.2.3 Denoising Pure Noise</h3>
+            <p>
+                Can we use a single-step denoiser as a generative model? I tested this by training a UNet to map pure Gaussian noise directly to clean MNIST digits;with no original image information at all.
+            </p>
+            
+            <p><strong>Training Setup:</strong></p>
+            <ul>
+                <li>Input: Pure noise \(\epsilon \sim \mathcal{N}(0, I)\) with shape (1, 28, 28)</li>
+                <li>Target: Random clean MNIST digit \(x\)</li>
+                <li>Loss: \(\mathcal{L} = \|\text{UNet}(\epsilon) - x\|^2\)</li>
+                <li>Same hyperparameters as before (batch_size=256, lr=1e-4, hidden_dim=128, epochs=5)</li>
+            </ul>
+            
+            <p><strong>The Fundamental Problem:</strong></p>
+            <p>
+                This approach is fundamentally flawed for generation. The issue is that the input noise \(\epsilon\) contains no information about which digit to generate. During training, each noise sample is paired with a random digit, but there's no consistent mapping;the same noise pattern could be paired with a "3" in one batch and a "7" in another.
+            </p>
+            
+            <div class="figure">
+                <img src="assets/pure_noise_unet_training.png" alt="Pure Noise Training Loss">
+                <div class="caption">Figure 4: Training loss when training to denoise pure noise.</div>
+            </div>
+            
+            <p><strong>Results:</strong></p>
+            <div class="grid-gallery">
+                <div class="figure">
+                    <img src="assets/noisy_unet_epoch1.png" alt="Pure Noise Denoising Epoch 1">
+                    <div class="caption">Epoch 1 Results</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/noisy_unet_epoch5.png" alt="Pure Noise Denoising Epoch 5">
+                    <div class="caption">Epoch 5 Results</div>
+                </div>
+            </div>
+            
+            <p><strong>Why It Fails (Mathematical Explanation):</strong></p>
+            <p>
+                With MSE loss, the optimal prediction for an input with multiple possible targets is the <em>mean</em> of those targets. Since any noise input could correspond to any digit (0-9), the network learns to output:
+            </p>
+            <p>
+                \[\hat{x} = \mathbb{E}[x] = \frac{1}{|\mathcal{D}|} \sum_{x \in \mathcal{D}} x\]
+            </p>
+            <p>
+                This is the average of all MNIST digits;a blurry, gray blob that minimizes expected squared error but looks nothing like any real digit (if you look at the resulting denoised images closely, you can actually see that the digits vaguely resembles an 8.
+                This is because every digit can be generated from a variation of the digit 8). This demonstrates why single-step denoising cannot work for generation: we need an <em>iterative</em> process that gradually refines noise into coherent images, which motivates Flow Matching in Part 2.
+            </p>
+        </section>
+
+        <section id="part2">
+            <h2>Part 2: Training a Flow Matching Model</h2>
+            <p>
+                Part 1 showed that single-step denoising fails for generation because there's no consistent mapping from noise to images. <strong>Flow Matching</strong> solves this by learning an <em>iterative</em> transformation that gradually morphs noise into data over many small steps.
+            </p>
+            
+            <p><strong>The Key Idea:</strong></p>
+            <p>
+                Instead of jumping directly from noise to data, we define a smooth path connecting them. At time \(t=0\), we have pure noise \(x_0 \sim \mathcal{N}(0, I)\). At time \(t=1\), we have clean data \(x_1\). The intermediate states follow a linear interpolation:
+            </p>
+            <p>
+                \[x_t = (1-t) \cdot x_0 + t \cdot x_1\]
+            </p>
+            <p>
+                The "flow" or velocity at any point along this path is constant:
+            </p>
+            <p>
+                \[v_t = \frac{dx_t}{dt} = x_1 - x_0\]
+            </p>
+            <p>
+                Our neural network learns to predict this flow \(v_t\) given the current state \(x_t\) and time \(t\). Once trained, we can generate new images by starting from noise and following the predicted flow forward in time.
+            </p>
+
+            <h3>2.1 & 2.2 Time-Conditioned UNet</h3>
+            <p>
+                To condition the UNet on time, I need to inject the scalar \(t \in [0, 1]\) into the network. I do this using <strong>FCBlock</strong> modules that transform \(t\) into feature modulation vectors.
+            </p>
+            
+            <p><strong>FCBlock Architecture:</strong></p>
+            <ul>
+                <li>Input: scalar or vector of dimension \(d_{in}\)</li>
+                <li>Linear(\(d_{in}\) → \(d_{out}\)) → GELU() → Linear(\(d_{out}\) → \(d_{out}\))</li>
+                <li>Output: vector of dimension \(d_{out}\)</li>
+            </ul>
+            
+            <p><strong>TimeConditionalUNet Architecture:</strong></p>
+            <p>
+                The architecture is similar to UnconditionalUNet, but with two FCBlocks that process the timestep:
+            </p>
+            <ul>
+                <li><strong>fc1</strong>: FCBlock(1 → 2D) - produces modulation vector \(t_1\) for the bottleneck</li>
+                <li><strong>fc2</strong>: FCBlock(1 → 2D) - produces modulation vector \(t_2\) for the first upsampling</li>
+            </ul>
+            <p>
+                The time conditioning is applied via <em>multiplicative modulation</em>:
+            </p>
+            <ul>
+                <li>After Unflatten: \(d = d \cdot t_1\) (element-wise multiplication, \(t_1\) is broadcast over spatial dims)</li>
+                <li>After first UpBlock: \(f = f \cdot t_2\)</li>
+            </ul>
+            <p>
+                This allows the network to learn different behaviors for different timesteps;early in the process (\(t \approx 0\)) the input is mostly noise, while late (\(t \approx 1\)) it's mostly signal.
+            </p>
+            <div class="figure">
+                <img src="assets/conditional_arch_fm.png" alt="Conditional UNet Architecture">
+                <div class="caption">Figure 4.1: Conditioned UNet Architecture.</div>
+            </div>
+            
+            <div class="figure">
+                <img src="assets/algo1_t_only_fm.png" alt="Algorithm 1: Training Time-Conditioned UNet">
+                <div class="caption">Algorithm 1: Training Time-Conditioned UNet.</div>
+            </div>
+            <div class="implementation-summary">
+                <h4>Implementation Details</h4>
+                <p><strong>Training Algorithm (Algorithm 1 - time_fm_forward):</strong></p>
+                <ol>
+                    <li>Sample a batch of clean images \(x_1\) from the dataset</li>
+                    <li>Sample random timesteps \(t \sim \text{Uniform}(0, 1)\) for each image in the batch</li>
+                    <li>Sample noise \(x_0 \sim \mathcal{N}(0, I)\)</li>
+                    <li>Compute interpolated states: \(x_t = (1-t) \cdot x_0 + t \cdot x_1\)</li>
+                    <li>Compute target flow: \(v_{target} = x_1 - x_0\)</li>
+                    <li>Predict flow: \(v_{pred} = \text{UNet}(x_t, t)\)</li>
+                    <li>Compute MSE loss: \(\mathcal{L} = \|v_{pred} - v_{target}\|^2\)</li>
+                </ol>
+                
+                <p><strong>Hyperparameters:</strong></p>
+                <ul>
+                    <li><strong>batch_size</strong> = 64: Smaller than Part 1 due to increased model complexity</li>
+                    <li><strong>learning_rate</strong> = 1e-2: Higher initial LR with decay</li>
+                    <li><strong>hidden_dim (D)</strong> = 64: Reduced from 128 for faster training</li>
+                    <li><strong>num_ts</strong> = 50: Number of Euler steps during sampling</li>
+                    <li><strong>epochs</strong> = 10: More epochs for the harder task</li>
+                    <li><strong>optimizer</strong> = Adam</li>
+                    <li><strong>scheduler</strong> = ExponentialLR with \(\gamma = 0.1^{1/10} \approx 0.794\)</li>
+                </ul>
+                <p>
+                    The exponential scheduler multiplies the learning rate by \(\gamma\) after each epoch, so after 10 epochs the LR has decayed by a factor of 10 (from 1e-2 to 1e-3). This helps the model converge to a better minimum.
+                </p>
+            </div>
+
+            <div class="figure">
+                <img src="assets/time-conditioned-unet-training.png" alt="Time Conditioned Training Loss">
+                <div class="caption">Figure 5: Training loss for the time-conditioned UNet.</div>
+            </div>
+
+            <h3>2.3 Sampling from the Time-Conditioned UNet</h3>
+            <p>
+                Once trained, we can generate new images by starting from pure noise and numerically integrating the learned flow field forward in time.
+            </p>
+            
+            <div class="figure">
+                <img src="assets/algo2_t_only_fm.png" alt="Algorithm 2: Sampling from Time-Conditioned UNet">
+                <div class="caption">Algorithm 2: Sampling from Time-Conditioned UNet.</div>
+            </div>
+            <div class="implementation-summary">
+                <h4>Implementation Details</h4>
+                <p><strong>Sampling Algorithm (Algorithm 2 - time_fm_sample):</strong></p>
+                <p>
+                    We use <strong>Euler's method</strong> to numerically integrate the ODE \(\frac{dx}{dt} = v_t\):
+                </p>
+                <ol>
+                    <li>Initialize: \(x_0 \sim \mathcal{N}(0, I)\) (pure noise)</li>
+                    <li>Set step size: \(\Delta t = 1 / N\)</li>
+                    <li>For \(i = 0, 1, ..., N - 1\):
+                        <ul>
+                            <li>Compute current time: \(t = i / N\)</li>
+                            <li>Predict flow: \(v_t = \text{UNet}(x_t, t)\)</li>
+                            <li>Euler step: \(x_{t+\Delta t} = x_t + \Delta t \cdot v_t\)</li>
+                        </ul>
+                    </li>
+                    <li>Return final state \(x_1\) as the generated image</li>
+                </ol>
+                
+                <p><strong>Why This Works:</strong></p>
+                <p>
+                    At each step, the network predicts "which direction to move" to get closer to a real image. Early steps (\(t \approx 0\)) make large structural decisions (what digit? what orientation?), while later steps (\(t \approx 1\)) refine fine details. This iterative refinement is what allows generation to work;unlike single-step denoising, each step builds on the previous one.
+                </p>
+                
+                <p><strong>Visualization:</strong></p>
+                <p>
+                    I generated 40 samples (4 rows × 10 columns) at epochs 1, 5, and 10 to show how sample quality improves with training. Early epochs produce blurry, inconsistent digits, while later epochs produce sharp, recognizable numbers.
+                </p>
+            </div>
+
+            <div class="figure">
+                <img src="assets/MNIST-digits-time-conditioned-epoch1.png" alt="Time Conditioned Epoch 1">
+                <div class="caption">Epoch 1 Samples</div>
+            </div>
+            <div class="figure">
+                <img src="assets/MNIST-digits-time-conditioned-epoch5.png" alt="Time Conditioned Epoch 5">
+                <div class="caption">Epoch 5 Samples</div>
+            </div>
+            <div class="figure">
+                <img src="assets/MNIST-digits-time-conditioned-epoch10.png" alt="Time Conditioned Epoch 10">
+                <div class="caption">Epoch 10 Samples</div>
+            </div>
+
+            <h3>2.4 & 2.5 Class-Conditioned UNet</h3>
+            <p>
+                The time-conditioned model generates random digits;we have no control over <em>which</em> digit it produces. To enable controlled generation, I extended the UNet to also accept a class label \(c \in \{0, 1, ..., 9\}\).
+            </p>
+            
+            <p><strong>ClassConditionalUNet Architecture:</strong></p>
+            <p>
+                The architecture adds two more FCBlocks for class conditioning:
+            </p>
+            <ul>
+                <li><strong>fc1, fc2</strong>: Same as before, process timestep \(t\)</li>
+                <li><strong>fc1_class</strong>: FCBlock(10 → 2D) - processes one-hot class vector for bottleneck</li>
+                <li><strong>fc2_class</strong>: FCBlock(10 → 2D) - processes one-hot class vector for first upsampling</li>
+            </ul>
+            
+            <p><strong>Conditioning Scheme:</strong></p>
+            <p>
+                The class and time conditioning are combined differently:
+            </p>
+            <ul>
+                <li>Class conditioning: <em>multiplicative</em> - \(d = d \cdot c_1\), \(f = f \cdot c_2\)</li>
+                <li>Time conditioning: <em>additive</em> - \(d = d + t_1\), \(f = f + t_2\)</li>
+            </ul>
+            <p>
+                So the full modulation is: \(d = \text{Unflatten}(d) \cdot c_1 + t_1\)
+            </p>
+            
+            <p><strong>Classifier-Free Guidance Setup:</strong></p>
+            <p>
+                To enable Classifier-Free Guidance (CFG) at inference time, the model must learn to predict flows both <em>with</em> and <em>without</em> class conditioning. During training, I randomly drop the class information with probability \(p_{uncond} = 0.1\):
+            </p>
+            <ul>
+                <li>Sample a Bernoulli mask: \(m \sim \text{Bernoulli}(1 - p_{uncond})\)</li>
+                <li>If \(m = 0\): zero out the one-hot class vector (unconditional)</li>
+                <li>If \(m = 1\): use the true class label (conditional)</li>
+            </ul>
+            
+            <div class="figure">
+                <img src="assets/algo3_c_fm.png" alt="Algorithm 3: Training Class-Conditioned UNet">
+                <div class="caption">Algorithm 3: Training Class-Conditioned UNet.</div>
+            </div>
+            <div class="implementation-summary">
+                <h4>Implementation Details</h4>
+                <p><strong>Training Algorithm (Algorithm 3 - class_fm_forward):</strong></p>
+                <ol>
+                    <li>Sample batch of (images \(x_1\), labels \(c\)) from dataset</li>
+                    <li>Sample \(t \sim \text{Uniform}(0, 1)\) and \(x_0 \sim \mathcal{N}(0, I)\)</li>
+                    <li>Compute \(x_t = (1-t) \cdot x_0 + t \cdot x_1\)</li>
+                    <li>Sample dropout mask: \(m \sim \text{Bernoulli}(0.9)\) (keep class 90% of time)</li>
+                    <li>Predict flow: \(v_{pred} = \text{UNet}(x_t, c, t, m)\)</li>
+                    <li>Compute loss: \(\mathcal{L} = \|v_{pred} - (x_1 - x_0)\|^2\)</li>
+                </ol>
+                
+                <p><strong>Hyperparameters:</strong></p>
+                <ul>
+                    <li><strong>batch_size</strong> = 64</li>
+                    <li><strong>learning_rate</strong> = 1e-2 with ExponentialLR(\(\gamma = 0.1^{1/10}\))</li>
+                    <li><strong>hidden_dim</strong> = 64</li>
+                    <li><strong>N</strong> = 50</li>
+                    <li><strong>p_uncond</strong> = 0.1 (drop class 10% of the time)</li>
+                    <li><strong>epochs</strong> = 10</li>
+                </ul>
+            </div>
+
+            <div class="figure">
+                <img src="assets/class-conditioned-unet-training.png" alt="Class Conditioned Training Loss">
+                <div class="caption">Figure 6: Training loss for the class-conditioned UNet.</div>
+            </div>
+
+            <h3>2.6 Sampling with Class Conditioning</h3>
+            <p>
+                <strong>Classifier-Free Guidance (CFG)</strong> is a technique that dramatically improves sample quality and class adherence by amplifying the difference between conditional and unconditional predictions.
+            </p>
+            
+            <p><strong>The Intuition:</strong></p>
+            <p>
+                The unconditional flow \(v_{uncond}\) tells us "how to make this look like <em>any</em> digit." The conditional flow \(v_{cond}\) tells us "how to make this look like digit \(c\)." The difference \(v_{cond} - v_{uncond}\) captures "what makes digit \(c\) special." By amplifying this difference, we push the sample more strongly toward the target class.
+            </p>
+            
+            <div class="figure">
+                <img src="assets/algo4_c_fm.png" alt="Algorithm 4: Sampling from Class-Conditioned UNet">
+                <div class="caption">Algorithm 4: Sampling from Class-Conditioned UNet.</div>
+            </div>
+            <div class="implementation-summary">
+                <h4>Implementation Details</h4>
+                <p><strong>Sampling Algorithm (Algorithm 4 - class_fm_sample):</strong></p>
+                <ol>
+                    <li>Initialize: \(x_0 \sim \mathcal{N}(0, I)\)</li>
+                    <li>For each Euler step \(i = 0, ..., N - 1\):
+                        <ul>
+                            <li>Compute \(t = i / N\)</li>
+                            <li>Get unconditional flow: \(v_{uncond} = \text{UNet}(x_t, c, t, \text{mask}=0)\)</li>
+                            <li>Get conditional flow: \(v_{cond} = \text{UNet}(x_t, c, t, \text{mask}=1)\)</li>
+                            <li>Apply CFG: \(v = v_{uncond} + \gamma \cdot (v_{cond} - v_{uncond})\)</li>
+                            <li>Euler step: \(x_{t+\Delta t} = x_t + \Delta t \cdot v\)</li>
+                        </ul>
+                    </li>
+                    <li>Return \(x_1\)</li>
+                </ol>
+                
+                <p><strong>CFG Scale \(\gamma\):</strong></p>
+                <ul>
+                    <li>\(\gamma = 0\): Pure unconditional generation (ignores class)</li>
+                    <li>\(\gamma = 1\): Standard conditional generation (no amplification)</li>
+                    <li>\(\gamma > 1\): Amplified conditioning (stronger class adherence)</li>
+                </ul>
+                <p>
+                    I used \(\gamma = 5.0\), which provides strong class guidance. Higher values can lead to oversaturation or artifacts.
+                </p>
+                
+                <p><strong>Visualization:</strong></p>
+                <p>
+                    I generated a 4×10 grid where each column is a different digit (0-9) and each row is a different random seed. This demonstrates that the model can reliably generate any requested digit class.
+                </p>
+            </div>
+
+            <div class="figure">
+                <img src="assets/class-conditioned-unet-images-epoch1.png" alt="Class Conditioned Epoch 1">
+                <div class="caption">Epoch 1 Results</div>
+            </div>
+            <div class="figure">
+                <img src="assets/class-conditioned-unet-images-epoch5.png" alt="Class Conditioned Epoch 5">
+                <div class="caption">Epoch 5 Results</div>
+            </div>
+            <div class="figure">
+                <img src="assets/class-conditioned-unet-images-epoch10.png" alt="Class Conditioned Epoch 10">
+                <div class="caption">Epoch 10 Results</div>
+            </div>
+
+            <p><strong>Training Without Learning Rate Scheduler:</strong></p>
+            <p>
+                To understand the impact of learning rate scheduling, I trained an identical model without the ExponentialLR scheduler (constant lr=1e-2 throughout training).
+            </p>
+            
+            <p><strong>Observation:</strong></p>
+            <p>
+                Surprisingly, removing the learning rate scheduler produced <em>no noticeable difference</em> in sample quality. The generated digits at epochs 1, 5, and 10 look essentially identical to those trained with the scheduler.
+            </p>
+            
+            <p><strong>Why This Happens:</strong></p>
+            <p>
+                Diffusion models (and flow matching models) are surprisingly robust to learning rate schedule choices. Unlike some other deep learning tasks where careful LR scheduling is critical for convergence, generative models with iterative sampling tend to be forgiving of hyperparameter choices. The key factors that matter more are:
+            </p>
+            <ul>
+                <li><strong>Model architecture</strong>: The UNet structure with skip connections is inherently stable</li>
+                <li><strong>Training objective</strong>: MSE loss on flow prediction is a well-behaved objective</li>
+                <li><strong>Iterative sampling</strong>: Small errors in the learned flow get corrected over many Euler steps</li>
+                <li><strong>Sufficient training</strong>: As long as the model trains long enough, it converges to similar solutions</li>
+            </ul>
+            <div class="figure">
+                <img src="assets/class-conditioned-unet-no-scheduler-training.png" alt="Training Loss Without LR Scheduler">
+                <div class="caption">Training loss without learning rate scheduler.</div>
+            </div>
+            <div class="grid-gallery grid-3">
+                <div class="figure">
+                    <img src="assets/class-conditioned-unet-no-scheduler-training-epoch1.png" alt="No Scheduler Epoch 1">
+                    <div class="caption">Epoch 1</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/class-conditioned-unet-no-scheduler-training-epoch5.png" alt="No Scheduler Epoch 5">
+                    <div class="caption">Epoch 5</div>
+                </div>
+                <div class="figure">
+                    <img src="assets/class-conditioned-unet-no-scheduler-training-epoch10.png" alt="No Scheduler Epoch 10">
+                    <div class="caption">Epoch 10</div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+    
+    <a href="#" class="scroll-top" title="Scroll to top">↑</a>
+</body>
+</html>
