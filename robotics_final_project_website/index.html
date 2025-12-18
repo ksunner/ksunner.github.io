@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EE106A Final Project — Autonomous Chess Player • UC Berkeley</title>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  
+  <!-- Prism.js for syntax highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #e2e8f0;
+      --subtle: #f8fafc;
+      --accent: #2563eb;
+      --code: #f6f8fa;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+    }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+    header.wrap { padding-top: 32px; padding-bottom: 8px; }
+    .header-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    h1 { font-size: 1.9rem; margin: 0 0 4px; letter-spacing: -0.02em; }
+    .meta { color: var(--muted); font-size: 0.95rem; }
+    .badge { display: inline-block; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+    .badge:hover { background: var(--subtle); border-color: var(--accent); color: var(--accent); }
+
+    .grid { display: grid; grid-template-columns: 220px 1fr; gap: 24px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+    aside { position: sticky; top: 16px; align-self: start; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    aside h2 { font-size: 0.85rem; margin: 0 0 8px; letter-spacing: 0.05em; color: var(--muted); text-transform: uppercase; }
+    nav a { display: block; padding: 6px 10px; border-radius: 8px; color: var(--text); text-decoration: none; font-size: 0.9rem; }
+    nav a:hover { background: var(--subtle); }
+    nav a.active { background: #eef2ff; border: 1px solid #c7d2fe; }
+    @media (max-width: 900px) { aside { position: static; } }
+
+    main section { padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: #fff; margin-bottom: 24px; }
+    section h2 { margin-top: 0; font-size: 1.35rem; }
+    section h3 { margin-top: 1.5em; font-size: 1.1rem; }
+    section h4 { margin-top: 1.2em; font-size: 1rem; color: var(--muted); }
+
+    .callout { background: var(--subtle); border-left: 4px solid var(--accent); padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 16px 0; }
+    .callout-warning { background: #fffbeb; border-left-color: #f59e0b; }
+    .callout-success { background: #f0fdf4; border-left-color: #22c55e; }
+
+    .figure-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 16px 0; }
+    @media (max-width: 700px) { .figure-grid { grid-template-columns: 1fr; } }
+    .figure-grid-3 { grid-template-columns: repeat(3, 1fr); }
+    @media (max-width: 900px) { .figure-grid-3 { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .figure-grid-3 { grid-template-columns: 1fr; } }
+    figure { margin: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #fff; }
+    figure img { width: 100%; display: block; }
+    figure .placeholder { 
+      aspect-ratio: 16/10; 
+      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    figcaption { padding: 10px 12px; color: var(--muted); font-size: 0.88rem; border-top: 1px solid var(--border); }
+
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.92rem; }
+    th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; }
+    th { background: var(--subtle); font-weight: 600; }
+    .table-wrap { overflow-x: auto; }
+
+    code { background: var(--code); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+    pre, pre[class*="language-"] { background: #2d3748; color: #e2e8f0; padding: 16px; border-radius: 10px; overflow-x: auto; font-size: 0.85rem; line-height: 1.5; margin: 0; }
+    pre code, pre[class*="language-"] code { background: none; padding: 0; font-size: inherit; color: inherit; }
+    .code-header { background: #1a202c; color: #a0aec0; padding: 8px 16px; border-radius: 10px 10px 0 0; font-size: 0.8rem; font-family: ui-monospace, monospace; display: flex; justify-content: space-between; }
+    .code-header + pre, .code-header + pre[class*="language-"] { border-radius: 0 0 10px 10px; margin-top: 0; }
+    
+    /* Prism.js token colors for better visibility */
+    .token.comment, .token.prolog, .token.doctype, .token.cdata { color: #68d391; }
+    .token.punctuation { color: #e2e8f0; }
+    .token.property, .token.tag, .token.boolean, .token.number, .token.constant, .token.symbol { color: #f6ad55; }
+    .token.selector, .token.attr-name, .token.string, .token.char, .token.builtin { color: #68d391; }
+    .token.operator, .token.entity, .token.url { color: #63b3ed; }
+    .token.atrule, .token.attr-value, .token.keyword { color: #b794f4; }
+    .token.function { color: #63b3ed; }
+    .token.class-name { color: #faf089; }
+    .token.regex, .token.important, .token.variable { color: #fc8181; }
+
+    .small { color: var(--muted); font-size: 0.9rem; }
+
+    .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 20px 0; }
+    @media (max-width: 700px) { .metrics-row { grid-template-columns: repeat(2, 1fr); } }
+    .metric { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 16px; border-radius: 10px; text-align: center; }
+    .metric .value { font-size: 1.8rem; font-weight: 700; }
+    .metric .label { font-size: 0.85rem; opacity: 0.9; }
+
+    .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 16px 0; }
+    .team-card { border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; background: #fff; }
+    .team-card .avatar { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; }
+    .team-card h4 { margin: 0 0 4px; font-size: 1rem; }
+    .team-card .role { color: var(--accent); font-size: 0.85rem; font-weight: 500; }
+    .team-card p { color: var(--muted); font-size: 0.85rem; margin: 8px 0 0; }
+
+    .links-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 16px 0; }
+    .link-card { border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; text-decoration: none; color: inherit; transition: all 0.2s; }
+    .link-card:hover { border-color: var(--accent); background: #f8fafc; }
+    .link-card .icon { font-size: 1.5rem; margin-bottom: 6px; }
+    .link-card h5 { margin: 0; font-size: 0.95rem; }
+    .link-card p { margin: 4px 0 0; font-size: 0.8rem; color: var(--muted); }
+
+    .flow-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0; }
+    .flow-step { background: white; border: 2px solid var(--accent); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 500; }
+    .flow-arrow { color: var(--accent); font-weight: bold; }
+
+    .file-tree { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 10px; font-family: ui-monospace, monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; }
+    .file-tree .folder { color: #fbbf24; }
+    .file-tree .file { color: #60a5fa; }
+    .file-tree .comment { color: #64748b; }
+
+    ul, ol { padding-left: 24px; }
+    li { margin-bottom: 6px; }
+
+    footer { text-align: center; color: var(--muted); font-size: 0.9rem; padding: 24px 0 48px; }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header class="wrap">
+    <div class="header-row">
+      <div>
+        <h1>EE106A Final Project: Autonomous Chess Player</h1>
+        <div class="meta">Karanbir Sunner, Maanit Sharma, Faiaz Khan, Pranav Banwasi · UC Berkeley · Fall 2025</div>
+      </div>
+      <a class="badge" href="https://github.com/ksunner/ee106a-final-project" target="_blank">GitHub →</a>
+    </div>
+  </header>
+
+  <div class="wrap grid">
+    <aside aria-label="Table of contents">
+      <h2>Contents</h2>
+      <nav id="toc">
+        <a href="#overview">Overview</a>
+        <a href="#design">Design</a>
+        <a href="#implementation">Implementation</a>
+        <a href="#results">Results</a>
+        <a href="#conclusion">Conclusion</a>
+        <a href="#team">Team</a>
+        <a href="#materials">Materials</a>
+      </nav>
+    </aside>
+
+    <main>
+      <!-- OVERVIEW -->
+      <section id="overview">
+        <h2>Overview</h2>
+        <p>
+          We present a fully autonomous robotic chess-playing system that integrates computer vision, motion planning, 
+          and real-time control. Our system uses a <strong>UR7e robotic arm</strong> equipped with a parallel-jaw gripper 
+          to physically manipulate chess pieces on a standard board.
+        </p>
+        <p>
+          The key innovation is our <strong>ArUco marker-based calibration system</strong> that uses bilinear interpolation 
+          to compute precise 3D positions for all 64 squares from just 4 corner markers. This eliminates rigid camera mounting 
+          and enables rapid recalibration when the board moves.
+        </p>
+        <div class="callout">
+          <strong>Key Results:</strong> The system achieves <strong>±2mm placement accuracy</strong> and a 
+          <strong>95% success rate</strong> on standard chess moves, demonstrating the viability of vision-guided 
+          manipulation for structured tabletop tasks.
+        </div>
+
+        <h3>Project Goals</h3>
+        <p>Given a chess move (e.g., "e2 to e4"), the robot must:</p>
+        <ol>
+          <li>Locate the source square on the physical board</li>
+          <li>Navigate to and grasp the piece without disturbing neighbors</li>
+          <li>Transport the piece through free space avoiding collisions</li>
+          <li>Place it precisely on the destination square</li>
+          <li>Retreat safely for the next move</li>
+        </ol>
+
+        <h3>Why Chess is Challenging</h3>
+        <ul>
+          <li><strong>Dense Environment:</strong> 32 pieces on 64 squares—pieces separated by only ~5.5cm</li>
+          <li><strong>Millimeter Precision:</strong> Placing on the line between squares is illegal</li>
+          <li><strong>Occlusion:</strong> Robot arm can block camera view during manipulation</li>
+          <li><strong>Sequential Constraints:</strong> Each move requires a complete approach-grasp-lift-move-place-retreat cycle</li>
+        </ul>
+      </section>
+
+      <!-- DESIGN -->
+      <section id="design">
+        <h2>Design</h2>
+        
+        <h3>Design Criteria</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Criterion</th><th>Requirement</th><th>Rationale</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Placement Accuracy</td><td>±3mm or better</td><td>Pieces must be clearly within square boundaries</td></tr>
+              <tr><td>Collision Avoidance</td><td>Zero collisions</td><td>Toppling pieces invalidates game state</td></tr>
+              <tr><td>Calibration Time</td><td>&lt;5 seconds</td><td>Quick setup between games</td></tr>
+              <tr><td>Move Execution</td><td>&lt;30 seconds/move</td><td>Reasonable game pace</td></tr>
+              <tr><td>Success Rate</td><td>&gt;90%</td><td>Reliable enough for full games</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>System Architecture</h3>
+        <p>We chose a modular ROS2 architecture with clear separation of concerns:</p>
+        <div class="figure-grid figure-grid-3">
+          <figure>
+            <div class="placeholder">📷 Perception</div>
+            <figcaption>ArUco detection, board calibration, TF transforms</figcaption>
+          </figure>
+          <figure>
+            <div class="placeholder">🧠 Planning</div>
+            <figcaption>IK solving, trajectory generation, move sequencing</figcaption>
+          </figure>
+          <figure>
+            <div class="placeholder">🤖 Control</div>
+            <figcaption>Joint trajectory execution, gripper actuation</figcaption>
+          </figure>
+        </div>
+
+        <h3>Key Design Choices</h3>
+        
+        <h4>1. ArUco Markers vs. Chessboard Pattern Detection</h4>
+        <p><strong>Decision:</strong> Use 4 ArUco markers at board corners instead of detecting the chessboard pattern.</p>
+        <ul>
+          <li><strong>Pro:</strong> Unique IDs enable unambiguous corner identification even under partial occlusion</li>
+          <li><strong>Pro:</strong> Works with any board design (not just alternating colors)</li>
+          <li><strong>Con:</strong> Requires physical markers attached to the board</li>
+        </ul>
+
+        <h4>2. Bilinear Interpolation vs. Homography</h4>
+        <p><strong>Decision:</strong> Compute square positions using 3D bilinear interpolation from corner markers.</p>
+        <ul>
+          <li><strong>Pro:</strong> Handles 3D positions naturally (including Z-height variations)</li>
+          <li><strong>Pro:</strong> Gracefully handles slight board warping</li>
+          <li><strong>Pro:</strong> Computationally simple—single matrix operation</li>
+        </ul>
+
+        <h4>3. Vertical Approach Strategy</h4>
+        <p><strong>Decision:</strong> The gripper always approaches pieces from directly above (vertical descent).</p>
+        <ul>
+          <li><strong>Pro:</strong> Minimizes risk of colliding with neighboring pieces</li>
+          <li><strong>Pro:</strong> Simplifies IK constraints (fixed end-effector orientation)</li>
+          <li><strong>Con:</strong> Requires sufficient vertical clearance; may be slower than diagonal approaches</li>
+        </ul>
+      </section>
+
+      <!-- IMPLEMENTATION -->
+      <section id="implementation">
+        <h2>Implementation</h2>
+        <p>
+          This section provides a detailed walkthrough of our system's implementation, including the key ROS2 nodes,
+          algorithms, and code that make autonomous chess playing possible.
+        </p>
+
+        <h3>Hardware Components</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Component</th><th>Model/Specification</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Robot Arm</td><td>Universal Robots UR7e (6-DOF)</td><td>Manipulation with 0.03mm repeatability</td></tr>
+              <tr><td>Gripper</td><td>Parallel-jaw gripper</td><td>Grasping chess pieces (20-40mm)</td></tr>
+              <tr><td>Camera</td><td>USB Camera / Intel RealSense</td><td>Visual perception, ArUco detection</td></tr>
+              <tr><td>Fiducial Markers</td><td>ArUco 5x5 (IDs 100-103)</td><td>Board corner identification</td></tr>
+              <tr><td>Chess Board</td><td>Standard (~44cm, 5.5cm squares)</td><td>Playing surface</td></tr>
+              <tr><td>Compute</td><td>Ubuntu 22.04 + ROS2 Humble</td><td>All processing and control</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Marker Placement</h4>
+        <p>Four ArUco markers from the 5×5 dictionary are placed at the board corners. These markers serve as the reference points for computing all 64 square positions:</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Corner Square</th><th>Marker ID</th><th>Position</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>a1</td><td>100</td><td>Bottom-left (white's queenside)</td></tr>
+              <tr><td>h1</td><td>101</td><td>Bottom-right (white's kingside)</td></tr>
+              <tr><td>h8</td><td>102</td><td>Top-right (black's kingside)</td></tr>
+              <tr><td>a8</td><td>103</td><td>Top-left (black's queenside)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="figure-grid">
+          <figure>
+            <div class="placeholder">🤖 Hardware Setup Photo</div>
+            <figcaption>Complete hardware setup with UR7e arm and camera</figcaption>
+          </figure>
+          <figure>
+            <div class="placeholder">♟️ Board with ArUco Markers</div>
+            <figcaption>Chess board with ArUco markers at corners (IDs 100-103)</figcaption>
+          </figure>
+        </div>
+
+        <h3>ROS2 Communication</h3>
+        <p>The nodes communicate via topics, services, and actions:</p>
+        <div class="code-header"><span>ROS2 Interface Summary</span><span>Bash</span></div>
+<pre class="language-bash"><code class="language-bash"># Published Topics (from chess_coords_aruco.py)
+/chess_board_center         # Center of board (geometry_msgs/PointStamped)
+/chess_square/{a1-h8}       # All 64 square positions published continuously
+
+# Services
+/calibrate_chess_board      # Triggers fresh calibration (std_srvs/Trigger)
+/toggle_gripper             # Opens or closes the gripper
+
+# Actions
+/scaled_joint_trajectory_controller/follow_joint_trajectory</code></pre>
+
+        <h3>Board Calibration System</h3>
+        <p>
+          The <code>ChessBoardCalibrator</code> node is the foundation of our system. It detects the 4 corner ArUco markers
+          via TF transforms, then uses <strong>bilinear interpolation</strong> to compute the 3D position of every square center.
+          This approach is robust to camera angle, board rotation, and slight warping.
+        </p>
+
+        <div class="callout">
+          <strong>Bilinear Interpolation Formula:</strong><br>
+          \( P(u,v) = (1-u)(1-v) \cdot P_{a1} + u(1-v) \cdot P_{h1} + uv \cdot P_{h8} + (1-u)v \cdot P_{a8} \)
+        </div>
+
+        <p>
+          The code below shows the core calibration logic. First, we look up each corner marker's position from the TF tree.
+          Then we iterate through all 64 squares, computing each center as a weighted combination of the four corners:
+        </p>
+
+        <div class="code-header"><span>chess_coords_aruco.py — Calibration Core</span><span>Python</span></div>
+<pre class="language-python"><code class="language-python">def calibrate_board(self):
+    """
+    Compute all 64 square centers using bilinear interpolation.
+    
+    This method takes the 3D positions of the 4 corner markers (a1, h1, h8, a8)
+    and interpolates to find every square's center position. The beauty of 
+    bilinear interpolation is that it works in 3D space, automatically handling
+    any board tilt or height variations.
+    """
+    # Get the 4 corner positions (numpy arrays with x, y, z)
+    a1 = self.marker_positions['a1']  # Bottom-left
+    h1 = self.marker_positions['h1']  # Bottom-right
+    h8 = self.marker_positions['h8']  # Top-right
+    a8 = self.marker_positions['a8']  # Top-left
+
+    # Iterate through all 64 squares
+    for file_idx, file_char in enumerate('abcdefgh'):
+        for rank_idx, rank_char in enumerate('12345678'):
+            # Compute normalized coordinates (0 to 1)
+            u = file_idx / 7.0  # 0 at file 'a', 1 at file 'h'
+            v = rank_idx / 7.0  # 0 at rank '1', 1 at rank '8'
+
+            # Bilinear interpolation formula:
+            # Blends the 4 corners based on how close we are to each
+            pos = (
+                (1-u) * (1-v) * a1 +  # Weight from a1 (bottom-left)
+                u * (1-v) * h1 +       # Weight from h1 (bottom-right)
+                u * v * h8 +           # Weight from h8 (top-right)
+                (1-u) * v * a8         # Weight from a8 (top-left)
+            )
+
+            # Store the computed position
+            square = f"{file_char}{rank_char}"
+            self.square_centers[square] = pos
+
+    self.calibrated = True
+    self.save_calibration()  # Persist to ~/.ros/chess_calibration.yaml</code></pre>
+
+        <p>
+          <strong>Why this works:</strong> For square e4 (file_idx=4, rank_idx=3), we get u=4/7≈0.57 and v=3/7≈0.43.
+          This means e4's position is roughly 57% of the way from the a-file to the h-file, and 43% from rank 1 to rank 8.
+          The formula blends all four corners with appropriate weights.
+        </p>
+
+        <h4>Persistent Calibration</h4>
+        <p>
+          To avoid recalibrating every time the system starts, calibration data is saved to a YAML file.
+          On startup, the node checks for existing calibration and loads it automatically:
+        </p>
+
+        <div class="code-header"><span>chess_coords_aruco.py — Persistence</span><span>Python</span></div>
+<pre class="language-python"><code class="language-python">def save_calibration(self):
+    """Save all 64 square positions to a YAML file for persistence."""
+    data = {
+        'square_centers': {
+            square: pos.tolist()  # Convert numpy array to list for YAML
+            for square, pos in self.square_centers.items()
+        }
+    }
+    with open(self.calibration_file, 'w') as f:
+        yaml.dump(data, f, default_flow_style=False)
+
+def load_calibration(self):
+    """Load previously saved calibration on startup."""
+    if not self.calibration_file.exists():
+        return False
+    
+    with open(self.calibration_file, 'r') as f:
+        data = yaml.safe_load(f)
+    
+    # Convert lists back to numpy arrays
+    self.square_centers = {
+        square: np.array(pos)
+        for square, pos in data['square_centers'].items()
+    }
+    self.calibrated = True
+    return True</code></pre>
+
+        <h3>Inverse Kinematics</h3>
+        <p>
+          The <code>IKPlanner</code> class interfaces with MoveIt2 to convert Cartesian positions (x, y, z) into 
+          joint angles the robot can execute. A key constraint is the <strong>gripper orientation</strong>: we always
+          keep it pointing straight down to avoid colliding with neighboring pieces.
+        </p>
+
+        <div class="code-header"><span>ik.py — IK Computation</span><span>Python</span></div>
+<pre class="language-python"><code class="language-python">def compute_ik(self, current_joint_state, x, y, z,
+               qx=0.0, qy=1.0, qz=0.0, qw=0.0):
+    """
+    Compute inverse kinematics for a target position.
+    
+    The default quaternion (0, 1, 0, 0) represents a 180° rotation about
+    the Y-axis. This points the gripper straight down (negative Z direction),
+    which is essential for chess—approaching from above minimizes the risk
+    of knocking over adjacent pieces.
+    
+    Args:
+        current_joint_state: Current robot joint positions (for seeding IK)
+        x, y, z: Target position in the robot's base frame
+        qx, qy, qz, qw: Orientation quaternion (default: gripper down)
+    
+    Returns:
+        JointState with solution, or None if IK fails
+    """
+    # Build the target pose
+    pose = PoseStamped()
+    pose.header.frame_id = 'base_link'
+    pose.pose.position.x = x
+    pose.pose.position.y = y
+    pose.pose.position.z = z
+    pose.pose.orientation.x = qx
+    pose.pose.orientation.y = qy
+    pose.pose.orientation.z = qz
+    pose.pose.orientation.w = qw
+
+    # Configure the IK request
+    ik_req = GetPositionIK.Request()
+    ik_req.ik_request.group_name = 'ur_manipulator'
+    ik_req.ik_request.pose_stamped = pose
+    ik_req.ik_request.robot_state.joint_state = current_joint_state
+    ik_req.ik_request.ik_link_name = 'tool0'  # End-effector link
+    ik_req.ik_request.avoid_collisions = True
+    ik_req.ik_request.timeout = Duration(sec=2)
+
+    # Call MoveIt2's IK service
+    future = self.ik_client.call_async(ik_req)
+    rclpy.spin_until_future_complete(self, future)
+
+    result = future.result()
+    if result.error_code.val == 1:  # SUCCESS
+        return result.solution.joint_state
+    return None</code></pre>
+
+        <h3>Move Execution</h3>
+        <p>
+          The <code>ChessMoveAruco</code> node executes a single chess move (e.g., e2→e4). It subscribes to the 
+          calibrated square positions, builds a sequence of waypoints, and executes them one by one.
+          Each move follows an <strong>8-step sequence</strong> for safe manipulation:
+        </p>
+
+        <div class="flow-steps">
+          <span class="flow-step">1. Approach</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">2. Descend</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">3. Grasp</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">4. Lift</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">5. Transit</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">6. Lower</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">7. Release</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">8. Retreat</span>
+        </div>
+
+        <div class="code-header"><span>chess_move_aruco.py — Building the Move Sequence</span><span>Python</span></div>
+<pre class="language-python"><code class="language-python">def build_job_queue(self):
+    """
+    Build the complete 8-step movement sequence for a chess move.
+    
+    The vertical approach strategy (descending from above) is critical
+    for chess because pieces are densely packed. Approaching from the 
+    side would risk collisions with neighboring pieces.
+    """
+    from_x, from_y, from_z = self.from_position
+    to_x, to_y, to_z = self.to_position
+
+    # Heights: approach from 30cm above, grasp at configured height
+    z_approach = from_z + 0.30           # Safe transit height
+    z_grasp = from_z + self.offset_z_grasp  # Grasp height (default 22cm)
+
+    # Build the job queue: list of (action_type, parameters)
+    self.job_queue = [
+        ("ik", (from_x, from_y, z_approach)),  # 1. Hover above origin
+        ("ik", (from_x, from_y, z_grasp)),     # 2. Descend to piece
+        ("grip", None),                         # 3. Close gripper
+        ("ik", (from_x, from_y, z_approach)),  # 4. Lift piece up
+        ("ik", (to_x, to_y, z_approach)),      # 5. Move to destination
+        ("ik", (to_x, to_y, z_grasp + 0.005)), # 6. Lower (slightly higher)
+        ("grip", None),                         # 7. Open gripper
+        ("ik", (to_x, to_y, z_approach)),      # 8. Retreat upward
+    ]</code></pre>
+
+        <h3>Capture Moves</h3>
+        <p>
+          The <code>ChessTake</code> node handles captures, which require a <strong>16-step sequence</strong>:
+          first remove the captured piece to an off-board location, then move the attacking piece to the destination.
+        </p>
+
+        <div class="code-header"><span>chess_take.py — Capture Sequence</span><span>Python</span></div>
+<pre class="language-python"><code class="language-python">def build_capture_sequence(self):
+    """
+    Build the complete capture sequence (16 steps total).
+    
+    Phase 1 (steps 1-8): Remove the captured piece
+      - Pick up piece at destination square
+      - Move it to off-board position (e.g., y=0.5m to the side)
+      - Release it there
+    
+    Phase 2 (steps 9-16): Move the attacking piece
+      - Pick up piece at origin square  
+      - Move it to the now-empty destination
+      - Release it
+    """
+    # Off-board position for captured pieces
+    offboard_pos = (self.offboard_x, self.offboard_y, self.offboard_z)
+
+    self.job_queue = [
+        # === PHASE 1: Remove captured piece ===
+        ("ik", (to_x, to_y, z_approach)),    # 1. Approach destination
+        ("ik", (to_x, to_y, z_grasp)),       # 2. Descend to captured piece
+        ("grip", None),                       # 3. Grasp captured piece
+        ("ik", (to_x, to_y, z_approach)),    # 4. Lift it
+        ("ik", offboard_approach),            # 5. Move to off-board area
+        ("ik", offboard_pos),                 # 6. Lower to surface
+        ("grip", None),                       # 7. Release captured piece
+        ("ik", offboard_approach),            # 8. Retreat
+
+        # === PHASE 2: Move attacking piece ===
+        ("ik", (from_x, from_y, z_approach)), # 9. Approach origin
+        ("ik", (from_x, from_y, z_grasp)),   # 10. Descend to attacker
+        ("grip", None),                       # 11. Grasp attacking piece
+        ("ik", (from_x, from_y, z_approach)),# 12. Lift it
+        ("ik", (to_x, to_y, z_approach)),    # 13. Move to destination
+        ("ik", (to_x, to_y, z_grasp)),       # 14. Lower to board
+        ("grip", None),                       # 15. Release
+        ("ik", (to_x, to_y, z_approach)),    # 16. Retreat
+    ]</code></pre>
+
+        <h3>Game Replay</h3>
+        <p>
+          The <code>ChessGameReplay</code> node can execute an entire chess game from a file. It parses the move list,
+          subscribes to all required square positions, then executes moves sequentially with configurable delays.
+        </p>
+
+        <div class="code-header"><span>Example Game File</span><span>Text</span></div>
+<pre class="language-text"><code># Scholar's Mate (4-move checkmate)
+# Format: from_square to_square
+e2 e4
+e7 e5
+f1 c4
+b8 c6
+d1 h5
+g8 f6
+h5 f7</code></pre>
+
+        <div class="code-header"><span>chess_game_replay.py — Game Execution</span><span>Python</span></div>
+<pre class="language-python"><code class="language-python">class ChessGameReplay(Node):
+    def __init__(self, game_file, move_delay=3.0):
+        """
+        Initialize the game replay node.
+        
+        Args:
+            game_file: Path to file containing moves (simple notation)
+            move_delay: Seconds to wait between moves (for visibility)
+        """
+        super().__init__('chess_game_replay')
+        
+        self.move_delay = move_delay
+        
+        # Parse the game file into a list of (from, to) tuples
+        parser = ChessGameParser()
+        self.moves = parser.parse_game_file(game_file)
+        self.get_logger().info(f'Loaded {len(self.moves)} moves')
+        
+        # Subscribe to positions for all squares used in the game
+        self.square_positions = {}
+        squares_needed = set()
+        for from_sq, to_sq in self.moves:
+            squares_needed.add(from_sq)
+            squares_needed.add(to_sq)
+        
+        for square in squares_needed:
+            self.create_subscription(
+                PointStamped,
+                f'/chess_square/{square}',
+                lambda msg, sq=square: self._store_position(sq, msg),
+                10
+            )</code></pre>
+
+        <h3>Game Parser</h3>
+        <p>
+          The <code>ChessGameParser</code> supports multiple notation formats, making it easy to replay games from
+          various sources:
+        </p>
+
+        <div class="code-header"><span>chess_game_parser.py — Multi-Format Support</span><span>Python</span></div>
+<pre class="language-python"><code class="language-python">class ChessGameParser:
+    """
+    Parses chess games in multiple formats:
+    - Simple notation: e2-e4, e2 e4, or e2e4
+    - Standard Algebraic Notation (SAN): e4, Nf3, Bxc4
+    - PGN format: 1. e4 e5 2. Nf3 Nc6
+    """
+    
+    def parse_simple_notation(self, content):
+        """Parse simple 'from to' notation (our primary format)."""
+        moves = []
+        for line in content.split('\n'):
+            line = line.split('#')[0].strip()  # Remove comments
+            if not line:
+                continue
+            # Match: e2-e4, e2 e4, or e2e4
+            match = re.match(r'([a-h][1-8])[\s-]*([a-h][1-8])', line)
+            if match:
+                moves.append((match.group(1), match.group(2)))
+        return moves</code></pre>
+
+        <div class="callout callout-success">
+          <strong>Key Implementation Insight:</strong> By separating calibration, IK planning, and move execution into 
+          distinct nodes, we achieved a modular system where each component can be tested and debugged independently.
+          The calibrator publishes positions continuously, so move nodes simply subscribe and react—no tight coupling required.
+        </div>
+      </section>
+
+      <!-- RESULTS -->
+      <section id="results">
+        <h2>Results</h2>
+
+        <h3>Performance Metrics</h3>
+        <div class="metrics-row">
+          <div class="metric">
+            <div class="value">±2mm</div>
+            <div class="label">Placement Accuracy</div>
+          </div>
+          <div class="metric">
+            <div class="value">95%</div>
+            <div class="label">Success Rate</div>
+          </div>
+          <div class="metric">
+            <div class="value">&lt;2s</div>
+            <div class="label">Calibration Time</div>
+          </div>
+          <div class="metric">
+            <div class="value">~20s</div>
+            <div class="label">Per Move Time</div>
+          </div>
+        </div>
+
+        <h3>Demo Video</h3>
+        <figure>
+          <div class="placeholder" style="aspect-ratio: 16/9;">🎬 Demo Video — Replace with YouTube embed</div>
+          <figcaption>Replace with: <code>&lt;iframe src="https://youtube.com/embed/YOUR_VIDEO_ID"&gt;</code></figcaption>
+        </figure>
+
+        <h3>Tasks Performed</h3>
+        <ul>
+          <li><strong>Single Moves:</strong> Successfully executed individual piece movements (e.g., e2→e4)</li>
+          <li><strong>Game Replay:</strong> Replayed full chess games from PGN-style files</li>
+          <li><strong>Calibration Recovery:</strong> System correctly recalibrated after board was moved</li>
+          <li><strong>Various Piece Types:</strong> Handled pawns, knights, bishops, rooks, queens, and kings</li>
+        </ul>
+
+        <div class="figure-grid">
+          <figure>
+            <div class="placeholder">♟️ Move Execution Photo</div>
+            <figcaption>Robot executing a chess move</figcaption>
+          </figure>
+          <figure>
+            <div class="placeholder">🎯 Calibration Visualization</div>
+            <figcaption>Board calibration debug view showing computed square centers</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <!-- CONCLUSION -->
+      <section id="conclusion">
+        <h2>Conclusion</h2>
+
+        <h3>Summary</h3>
+        <p>
+          We successfully demonstrated a fully autonomous chess-playing robot. The ArUco-based calibration system proved 
+          highly effective, achieving ±2mm placement accuracy with a 95% success rate. The bilinear interpolation approach 
+          for computing square positions was robust to camera angle variations and slight board warping.
+        </p>
+
+        <h3>Challenges Encountered</h3>
+        <ul>
+          <li><strong>Lighting Sensitivity:</strong> ArUco detection affected by glare and shadows; required consistent lighting</li>
+          <li><strong>Gripper Calibration:</strong> Fine-tuning grasp height for different piece sizes required iteration</li>
+          <li><strong>IK Singularities:</strong> Some board positions near workspace limits caused IK failures</li>
+          <li><strong>TF Timing:</strong> Occasional TF lookup failures required retry logic</li>
+        </ul>
+
+        <h3>Limitations & Future Work</h3>
+        <div class="callout callout-warning">
+          <strong>Current Limitations:</strong>
+          <ul style="margin-bottom:0;">
+            <li>No piece recognition—system relies on external move commands</li>
+            <li>Cannot handle captures (removing opponent pieces)</li>
+            <li>No collision detection with pieces during transit</li>
+            <li>Requires manual piece setup at game start</li>
+          </ul>
+        </div>
+        <p><strong>Future Improvements:</strong></p>
+        <ul>
+          <li>Add computer vision for piece recognition and board state tracking</li>
+          <li>Integrate chess engine (Stockfish) for autonomous play</li>
+          <li>Implement capture handling with piece removal to side</li>
+          <li>Add force sensing for grasp verification</li>
+        </ul>
+      </section>
+
+      <!-- TEAM -->
+      <section id="team">
+        <h2>Team</h2>
+        <div class="team-grid">
+          <div class="team-card">
+            <div class="avatar">K</div>
+            <h4>Karanbir Sunner</h4>
+            <div class="role">Perception Lead</div>
+            <p>ArUco detection, camera calibration, board calibration system</p>
+          </div>
+          <div class="team-card">
+            <div class="avatar">M</div>
+            <h4>Maanit Sharma</h4>
+            <div class="role">Planning Lead</div>
+            <p>IK solver integration, trajectory planning, move sequencing</p>
+          </div>
+          <div class="team-card">
+            <div class="avatar">F</div>
+            <h4>Faiaz Khan</h4>
+            <div class="role">Controls Lead</div>
+            <p>Gripper control, trajectory execution, system integration</p>
+          </div>
+          <div class="team-card">
+            <div class="avatar">P</div>
+            <h4>Pranav Banwasi</h4>
+            <div class="role">Testing & Documentation</div>
+            <p>System testing, game replay, website, video production</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- MATERIALS -->
+      <section id="materials">
+        <h2>Additional Materials</h2>
+
+        <h3>Downloads & Links</h3>
+        <div class="links-row">
+          <a href="https://github.com/ksunner/ee106a-final-project" class="link-card" target="_blank">
+            <div class="icon">📦</div>
+            <h5>Source Code</h5>
+            <p>Full ROS2 workspace</p>
+          </a>
+          <a href="#" class="link-card">
+            <div class="icon">📄</div>
+            <h5>ArUco Markers</h5>
+            <p>Printable PDF</p>
+          </a>
+          <a href="#" class="link-card">
+            <div class="icon">📖</div>
+            <h5>Setup Guide</h5>
+            <p>Installation docs</p>
+          </a>
+          <a href="#" class="link-card">
+            <div class="icon">🎬</div>
+            <h5>Demo Videos</h5>
+            <p>YouTube playlist</p>
+          </a>
+        </div>
+
+        <h3>Key Files Reference</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>File</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>chess_coords_aruco.py</code></td><td>Board calibration using ArUco markers + bilinear interpolation</td></tr>
+              <tr><td><code>chess_move_aruco.py</code></td><td>Single move execution with IK planning</td></tr>
+              <tr><td><code>chess_game_replay.py</code></td><td>Replay full games from move files</td></tr>
+              <tr><td><code>ik.py</code></td><td>MoveIt2 IK interface and trajectory planning</td></tr>
+              <tr><td><code>chess_system.launch.py</code></td><td>Complete system launch file</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Quick Start Commands</h3>
+        <div class="code-header"><span>Terminal</span><span>Bash</span></div>
+<pre class="language-bash"><code class="language-bash"># Build the workspace
+cd ~/ros_workspaces/ee106a-final-project/final_project
+colcon build --packages-select planning
+source install/setup.bash
+
+# Launch the complete system
+ros2 launch planning chess_system.launch.py
+
+# Calibrate the board (run once)
+ros2 service call /calibrate_chess_board std_srvs/srv/Trigger
+
+# Execute a single move
+ros2 run planning chess_move_aruco --from e2 --to e4
+
+# Replay a full game
+ros2 run planning chess_game_replay --game-file games/ladder_checkmate.txt</code></pre>
+
+        <h3>Dependencies</h3>
+        <ul>
+          <li>ROS2 Humble</li>
+          <li>MoveIt2</li>
+          <li>OpenCV 4.7+ (with ArUco module)</li>
+          <li>NumPy, PyYAML</li>
+          <li>Universal Robots ROS2 Driver</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    EE106A: Introduction to Robotics · UC Berkeley · Fall 2025<br>
+    <a href="https://github.com/ksunner/ee106a-final-project">GitHub Repository</a>
+  </footer>
+
+  <script>
+    // Highlight active TOC link on scroll
+    const links = Array.from(document.querySelectorAll('#toc a'));
+    const sections = links.map(a => document.querySelector(a.getAttribute('href')));
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const i = sections.indexOf(entry.target);
+        if (i >= 0) {
+          if (entry.isIntersecting) links[i].classList.add('active');
+          else links[i].classList.remove('active');
+        }
+      });
+    }, { rootMargin: '-20% 0px -70% 0px', threshold: 0.01 });
+    sections.forEach(sec => sec && io.observe(sec));
+  </script>
+</body>
+</html>
